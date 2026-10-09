@@ -4,128 +4,57 @@
 <title>DOT×MUSIC</title>
 <link href="https://fonts.googleapis.com/css2?family=DotGothic16&family=Zen+Maru+Gothic:wght@500;700;900&display=swap" rel="stylesheet">
 <style>
-:root{--bg:#fff7fb;--b1:#ffd0e6;--b2:#cde6ff;--b3:#fff0b3;--fg:#3a2f4a;--sub:#8a7d99;--card:rgba(255,255,255,.72);--line:rgba(80,60,110,.14);--chip:rgba(80,60,110,.08);--g1:#ff6fa5;--g2:#ff9a5c;--g3:#6a8dff;--cv:#fffdf8;
+:root{--bg:#fff7fb;--b1:#ffd0e6;--b2:#cde6ff;--b3:#fff0b3;--fg:#3a2f4a;--sub:#8a7d99;--card:rgba(255,255,255,.72);--line:rgba(80,60,110,.14);--g1:#ff6fa5;--g2:#ff9a5c;--g3:#6a8dff;--cv:#fffdf8;
 box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#17151f;--b1:#4a2250;--b2:#1c3a5e;--b3:#3c3a1a;--fg:#f4eefc;--sub:#a79bb8;--card:rgba(44,40,60,.72);--line:rgba(255,255,255,.14);--chip:rgba(255,255,255,.09)}}
-:root[data-theme="dark"]{--bg:#17151f;--b1:#4a2250;--b2:#1c3a5e;--b3:#3c3a1a;--fg:#f4eefc;--sub:#a79bb8;--card:rgba(44,40,60,.72);--line:rgba(255,255,255,.14);--chip:rgba(255,255,255,.09)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#17151f;--b1:#4a2250;--b2:#1c3a5e;--b3:#3c3a1a;--fg:#f4eefc;--sub:#a79bb8;--card:rgba(44,40,60,.72);--line:rgba(255,255,255,.14)}}
+:root[data-theme="dark"]{--bg:#17151f;--b1:#4a2250;--b2:#1c3a5e;--b3:#3c3a1a;--fg:#f4eefc;--sub:#a79bb8;--card:rgba(44,40,60,.72);--line:rgba(255,255,255,.14)}
 *{box-sizing:border-box}
 html,body{min-height:100%}
 body{margin:0;color:var(--fg);font-family:"Zen Maru Gothic","Hiragino Maru Gothic ProN","Hiragino Sans",sans-serif;
 background:radial-gradient(circle at 8% 8%,var(--b1),transparent 42%),radial-gradient(circle at 92% 18%,var(--b2),transparent 42%),radial-gradient(circle at 50% 100%,var(--b3),transparent 48%),var(--bg);
-display:flex;flex-direction:column;align-items:center;padding:14px 12px 28px}
-header{text-align:center;margin-bottom:12px}
-h1{font-family:"DotGothic16","Zen Maru Gothic",monospace;font-size:clamp(1.7rem,5vw,2.6rem);margin:0;letter-spacing:.04em;line-height:1.1;
+display:flex;flex-direction:column;align-items:center;padding:18px 14px 30px;gap:14px}
+h1{font-family:"DotGothic16","Zen Maru Gothic",monospace;font-size:clamp(1.7rem,7vw,2.4rem);margin:0;text-align:center;
 background:linear-gradient(90deg,var(--g1),var(--g2),var(--g3));-webkit-background-clip:text;background-clip:text;color:transparent}
-header p{margin:4px 0 0;color:var(--sub);font-size:.9rem;font-weight:700}
-.app{display:grid;gap:16px;width:min(1080px,100%);justify-items:center}
-.panel{background:var(--card);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:1px solid var(--line);border-radius:26px;padding:12px;box-shadow:0 10px 30px rgba(120,80,160,.15)}
-.stage{width:min(94vw,640px)}
-canvas#c{width:100%;aspect-ratio:1;display:block;border-radius:16px;touch-action:none;background:var(--cv);box-shadow:inset 0 0 0 1px var(--line);cursor:crosshair}
-.side{width:min(94vw,640px);display:flex;flex-direction:column;gap:14px}
-.lab{font-size:.78rem;font-weight:900;color:var(--sub);letter-spacing:.08em;margin:0 0 7px}
-.pal{display:grid;grid-template-columns:repeat(8,1fr);gap:8px;justify-items:center}
-.sw{width:100%;max-width:44px;aspect-ratio:1;border-radius:50%;border:3px solid transparent;cursor:pointer;padding:0;position:relative;
-box-shadow:inset 0 -4px 6px rgba(0,0,0,.14),inset 0 3px 5px rgba(255,255,255,.55),0 2px 5px rgba(0,0,0,.18);transition:transform .12s}
-.sw.cust{background:linear-gradient(var(--c),var(--c)) padding-box,conic-gradient(#f55,#fd5,#5d7,#5cf,#85f,#f5c,#f55) border-box}
-.sw.on{transform:scale(1.18);outline:3px solid var(--fg);outline-offset:2px}
-.sw.er{background:#fff;font-size:20px;display:flex;align-items:center;justify-content:center;border:3px dashed #bbb}
-.sw.cust.on::after{content:"✎";position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:15px;color:#fff;text-shadow:0 0 3px #000,0 0 3px #000}
-.seg{display:inline-flex;background:var(--chip);border-radius:999px;padding:4px;gap:2px}
-.seg button{font:inherit;font-weight:700;font-size:.9rem;border:0;background:transparent;color:var(--fg);padding:8px 14px;border-radius:999px;cursor:pointer}
-.seg button.on{background:linear-gradient(135deg,var(--g1),var(--g2));color:#fff;box-shadow:0 2px 8px rgba(255,111,165,.45)}
-.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
-.btn{font:inherit;font-weight:900;font-size:1rem;border:0;border-radius:999px;padding:12px 20px;cursor:pointer;color:var(--fg);background:var(--chip);transition:transform .1s}
-.btn:active{transform:scale(.96)}
-.btn.play{flex:1;color:#fff;background:linear-gradient(135deg,var(--g1),var(--g2));box-shadow:0 6px 16px rgba(255,111,165,.45);font-size:1.1rem;padding:15px}
-.btn.qr{flex:1;color:#fff;background:linear-gradient(135deg,#6a8dff,#8a5cff);box-shadow:0 6px 16px rgba(106,141,255,.45);font-size:1.1rem;padding:15px}
-.btn.mk{background:linear-gradient(var(--card),var(--card)) padding-box,conic-gradient(#f55,#fd5,#5d7,#5cf,#85f,#f5c,#f55) border-box;border:2.5px solid transparent;width:100%}
-#msg{font-size:.85rem;min-height:1.2em;text-align:center;color:var(--sub);font-weight:700}
-#cp{position:absolute;opacity:0;width:1px;height:1px;pointer-events:none}
-#modal{position:fixed;inset:0;background:rgba(20,10,40,.6);backdrop-filter:blur(6px);display:none;align-items:center;justify-content:center;z-index:9;padding:12px}
-#modal .box{background:#fff;color:#3a2f4a;border-radius:28px;padding:22px;text-align:center;max-width:94vw;max-height:96vh;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.4)}
-#modal h2{font-family:"DotGothic16",monospace;margin:0 0 10px;font-size:1.3rem}
-#qr{width:min(78vw,62vh,500px);height:auto;image-rendering:pixelated;border-radius:12px;border:6px solid #fff;box-shadow:0 0 0 3px #ffb3d1}
-@media (min-width:900px) and (min-aspect-ratio:5/4){
-.app{grid-template-columns:auto 360px;align-items:start;justify-items:stretch}
-.stage{width:min(calc(100vh - 150px),58vw,700px)}.side{width:360px}
-.pal{grid-template-columns:repeat(4,1fr)}}
+p.sub{margin:0;color:var(--sub);font-size:.9rem;font-weight:700;text-align:center}
+.panel{background:var(--card);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:1px solid var(--line);border-radius:26px;padding:12px;box-shadow:0 10px 30px rgba(120,80,160,.15);width:min(94vw,520px)}
+canvas{width:100%;aspect-ratio:1;display:block;border-radius:16px;background:var(--cv);box-shadow:inset 0 0 0 1px var(--line);touch-action:manipulation}
+button{font:inherit;font-weight:900;font-size:1.15rem;border:0;border-radius:999px;padding:16px;width:min(94vw,520px);cursor:pointer;color:#fff;background:linear-gradient(135deg,var(--g1),var(--g2));box-shadow:0 6px 16px rgba(255,111,165,.45)}
+button:active{transform:scale(.97)}
+#empty{display:none;text-align:center;line-height:1.8;padding:30px 10px;font-weight:700}
+#msg{font-size:.85rem;color:var(--sub);font-weight:700;text-align:center;min-height:1.2em}
 </style></head><body>
-<header><h1>♪ DOT×MUSIC</h1><p>ドットでえをかくと、オリジナルのきょくになる！</p></header>
-<div class="app">
-<div class="panel stage"><canvas id="c" width="640" height="640"></canvas></div>
-<div class="side">
-<div class="panel"><p class="lab">COLOR</p>
-<div class="pal" id="pal"></div>
-<div style="margin-top:10px"><button class="btn mk" id="mk">🎨 すきな色をつくる</button></div>
-<input type="color" id="cp"></div>
-<div class="panel"><div class="row" style="justify-content:space-between">
-<div><p class="lab">PEN</p><div class="seg" id="szs"></div></div>
-<div class="row"><button class="btn" id="undo">↩</button><button class="btn" id="clear">🗑</button></div></div>
-<p class="lab" style="margin-top:12px">SCALE</p><div class="seg" id="scs" style="flex-wrap:wrap"></div>
-<p class="lab" style="margin-top:12px">TEMPO</p><div class="seg" id="tps"></div></div>
-<div class="row"><button class="btn play" id="play">▶ きいてみる</button><button class="btn qr" id="qrb">📱 QRでもちかえる</button></div>
+<h1>♪ DOT×MUSIC</h1>
+<p class="sub">あなたがつくった えと きょく</p>
+<div class="panel" id="art"><canvas id="c" width="640" height="640"></canvas></div>
+<button id="play">▶ きょくをきく</button>
 <div id="msg"></div>
-</div></div>
-<div id="modal"><div class="box">
-<h2>♪ スマホでよみとってね</h2>
-<canvas id="qr"></canvas>
-<div id="qrinfo" style="font-size:.8rem;margin:8px 0;color:#8a7d99"></div>
-<button class="btn" id="qrclose" style="color:#3a2f4a">とじる</button>
-</div></div>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
+<div class="panel" id="empty">QRコードをよみとると、<br>ここに えと きょくが ひょうじされます。</div>
 <script>
-const N=64,S=10,H=12,$=id=>document.getElementById(id);
-const BASE=[['あか','#ff3b30'],['ピンク','#ffbfcc'],['きいろ','#ffff00'],['みずいろ','#80ccff'],['あお','#007aff'],['みどり','#34c759'],['むらさき','#ccb3e6'],['オレンジ','#ff9900'],['はだいろ','#fae0c7'],['ちゃいろ','#cc8033'],['はいいろ','#8e8e93'],['くろ','#000000']];
-let CUSTOM=['#ff66c4','#16c7a8','#8a5cff'];
-const COL=[null,...BASE.map(c=>c[1]),...CUSTOM];
+const N=64,H=12,$=id=>document.getElementById(id);
+const COL=[null,'#ff3b30','#ffbfcc','#ffff00','#80ccff','#007aff','#34c759','#ccb3e6','#ff9900','#fae0c7','#cc8033','#8e8e93','#000000','#000','#000','#000'];
 const TIMBRE=[null,['square',0],['triangle',12],['triangle',12],['sine',12],['square',0],['sine',0],['sawtooth',0],['triangle',0],['sine',0],['triangle',-12],['sine',-12],['sawtooth',-12]];
 const SCALES=[[0,2,4,7,9],[0,2,4,5,7,9,11],[0,2,3,5,7,8,10],[0,1,5,7,8]];
 const BPM=[90,120,160];
-let grid=new Uint8Array(N*N),cur=1,undoStack=[],playing=false,playCol=-1;
-const cv=$('c'),ctx=cv.getContext('2d');
-const dark=()=>getComputedStyle(document.documentElement).getPropertyValue('--cv').trim();
+let grid=new Uint8Array(N*N),sc=0,tp=1,playing=false,playCol=-1;
+const ctx=$('c').getContext('2d');
 
-function seg(id,labels,def){const e=$(id);let v=def;
-  const set=i=>{v=i;[...e.children].forEach((c,j)=>c.classList.toggle('on',j===i));};
-  labels.forEach((t,i)=>{const b=document.createElement('button');b.textContent=t;b.onclick=()=>set(i);e.appendChild(b);});set(def);
-  return{get:()=>v,set};}
-const SZ=seg('szs',['小','中','大'],0),SC=seg('scs',['ペンタ','あかるい','せつない','和風'],0),TP=seg('tps',['ゆっくり','ふつう','はやい'],1);
-
+function decode(s){
+  const b=Uint8Array.from(atob(s.replace(/-/g,'+').replace(/_/g,'/')),c=>c.charCodeAt(0));
+  const g=new Uint8Array(N*N);
+  if(b[0]===0){for(let i=0;i<N*N;i++){const v=b[H+(i>>1)];g[i]=(i&1)?v&15:v>>4;}}
+  else{let p=H,i=0;while(p<b.length&&i<N*N){const v=(b[p]<<8)|b[p+1];p+=2;const run=(v&4095)+1;g.fill(v>>12,i,i+run);i+=run;}}
+  for(let k=0;k<3;k++)COL[13+k]='#'+[0,1,2].map(m=>b[3+k*3+m].toString(16).padStart(2,'0')).join('');
+  grid=g;sc=Math.min(3,b[1]);tp=Math.min(2,b[2]);
+}
 function render(){
-  ctx.fillStyle=dark();ctx.fillRect(0,0,640,640);
-  for(let y=0;y<N;y++)for(let x=0;x<N;x++){const v=grid[y*N+x];if(v){ctx.fillStyle=COL[v];ctx.fillRect(x*S,y*S,S,S);}}
-  for(let i=0;i<=N;i++){ctx.strokeStyle=i%8===0?'rgba(120,90,150,.22)':'rgba(120,90,150,.09)';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(i*S+.5,0);ctx.lineTo(i*S+.5,640);ctx.moveTo(0,i*S+.5);ctx.lineTo(640,i*S+.5);ctx.stroke();}
+  const S=10;ctx.fillStyle=getComputedStyle(document.documentElement).getPropertyValue('--cv').trim();ctx.fillRect(0,0,640,640);
+  for(let y=0;y<N;y++)for(let x=0;x<N;x++){const v=grid[y*N+x];if(v&&COL[v]){ctx.fillStyle=COL[v];ctx.fillRect(x*S,y*S,S+.4,S+.4);}}
   if(playCol>=0){const g=ctx.createLinearGradient(0,0,0,640);g.addColorStop(0,'rgba(255,111,165,.45)');g.addColorStop(1,'rgba(106,141,255,.45)');ctx.fillStyle=g;ctx.fillRect(playCol*S,0,S,640);}
 }
-// パレット
-const pal=$('pal');
-function paint(){pal.querySelectorAll('.sw').forEach(b=>{const v=+b.dataset.v;if(v>=13)b.style.setProperty('--c',COL[v]);else if(v>0)b.style.background=COL[v];});}
-for(let v=1;v<=15;v++){const b=document.createElement('button');b.className='sw'+(v>=13?' cust':'');b.dataset.v=v;b.title=v<=12?BASE[v-1][0]:'じぶんの色';b.onclick=()=>pick(v);pal.appendChild(b);}
-const eb=document.createElement('button');eb.className='sw er';eb.dataset.v=0;eb.textContent='🧽';eb.title='けしごむ';eb.onclick=()=>pick(0);pal.appendChild(eb);
-function pick(v){if(v===cur&&v>=13){openPicker();return;}cur=v;pal.querySelectorAll('.sw').forEach(s=>s.classList.toggle('on',+s.dataset.v===v));}
-function openPicker(){$('cp').value=COL[cur];$('cp').click();}
-$('mk').onclick=()=>{if(cur<13)pick(13);openPicker();};
-$('cp').addEventListener('input',e=>{if(cur>=13){COL[cur]=e.target.value;CUSTOM[cur-13]=e.target.value;paint();render();}});
-paint();pick(1);
-
-// 描画
-let drawing=false,last=null;
-function cell(e){const r=cv.getBoundingClientRect();return[Math.min(N-1,Math.max(0,Math.floor((e.clientX-r.left)/r.width*N))),Math.min(N-1,Math.max(0,Math.floor((e.clientY-r.top)/r.height*N)))];}
-function stamp(x,y){const b=SZ.get()+1,o=Math.floor(b/2);for(let j=0;j<b;j++)for(let i=0;i<b;i++){const xx=x-o+i,yy=y-o+j;if(xx>=0&&yy>=0&&xx<N&&yy<N)grid[yy*N+xx]=cur;}}
-function line(a,b){let[x0,y0]=a,[x1,y1]=b;const dx=Math.abs(x1-x0),dy=-Math.abs(y1-y0),sx=x0<x1?1:-1,sy=y0<y1?1:-1;let err=dx+dy;
-  for(;;){stamp(x0,y0);if(x0===x1&&y0===y1)break;const e2=2*err;if(e2>=dy){err+=dy;x0+=sx;}if(e2<=dx){err+=dx;y0+=sy;}}}
-cv.addEventListener('pointerdown',e=>{if(playing)return;e.preventDefault();cv.setPointerCapture(e.pointerId);undoStack.push(grid.slice());if(undoStack.length>30)undoStack.shift();drawing=true;last=cell(e);stamp(...last);render();});
-cv.addEventListener('pointermove',e=>{if(!drawing)return;const p=cell(e);line(last,p);last=p;render();});
-['pointerup','pointercancel'].forEach(t=>cv.addEventListener(t,()=>{drawing=false;}));
-$('undo').onclick=()=>{if(undoStack.length){grid=undoStack.pop();render();}};
-$('clear').onclick=()=>{if(confirm('ぜんぶけしますか？')){undoStack.push(grid.slice());grid.fill(0);render();}};
-
-// 音
 function hsl(hex){const r=parseInt(hex.slice(1,3),16)/255,g=parseInt(hex.slice(3,5),16)/255,b=parseInt(hex.slice(5,7),16)/255,mx=Math.max(r,g,b),mn=Math.min(r,g,b),l=(mx+mn)/2;let h=0;
   if(mx!==mn){const d=mx-mn;h=mx===r?(g-b)/d+(g<b?6:0):mx===g?(b-r)/d+2:(r-g)/d+4;h*=60;}return[h,l];}
 function timbre(v){if(v<=12)return TIMBRE[v];const[h,l]=hsl(COL[v]);return[['sine','triangle','square','sawtooth'][Math.floor(h/90)%4],l>.65?12:l<.35?-12:0];}
-let ac=null;
-function columnNotes(x,sc){
+function columnNotes(x){
   const cnt={},sum={};
   for(let y=0;y<N;y++){const v=grid[y*N+x];if(v){cnt[v]=(cnt[v]||0)+1;sum[v]=(sum[v]||0)+y;}}
   const s=SCALES[sc],n=s.length*3;
@@ -133,57 +62,24 @@ function columnNotes(x,sc){
     const row=sum[v]/cnt[v],i=Math.min(n-1,Math.floor((N-1-row)/N*n)),t=timbre(+v);
     return{midi:48+12*Math.floor(i/s.length)+s[i%s.length]+t[1],wave:t[0]};});
 }
+let ac=null;
 function play(){
   if(playing)return;
-  if(!grid.some(v=>v)){$('msg').textContent='まず絵をかいてね！';return;}
-  $('msg').textContent='';
   ac=ac||new (window.AudioContext||window.webkitAudioContext)();ac.resume();
-  const sc=SC.get(),step=60/BPM[TP.get()]/4,t0=ac.currentTime+.1;
-  for(let x=0;x<N;x++)columnNotes(x,sc).forEach(nt=>{
+  const step=60/BPM[tp]/4,t0=ac.currentTime+.1;
+  for(let x=0;x<N;x++)columnNotes(x).forEach(nt=>{
     const o=ac.createOscillator(),g=ac.createGain(),t=t0+x*step,d=step*2.2;
     o.type=nt.wave;o.frequency.value=440*Math.pow(2,(nt.midi-69)/12);
     g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(.12,t+.01);g.gain.exponentialRampToValueAtTime(.001,t+d);
     o.connect(g).connect(ac.destination);o.start(t);o.stop(t+d+.05);});
-  playing=true;$('play').textContent='♪ ふきこみ中…';
+  playing=true;$('play').textContent='♪ ながれています…';
   (function loop(){const c=Math.floor((ac.currentTime-t0)/step);
-    if(c>=N+4){playing=false;playCol=-1;render();$('play').textContent='▶ きいてみる';return;}
+    if(c>=N+4){playing=false;playCol=-1;render();$('play').textContent='▶ もういちどきく';return;}
     playCol=c>=0&&c<N?c:-1;render();requestAnimationFrame(loop);})();
 }
 $('play').onclick=play;
-
-// QR（URL#d=... に絵・音階・テンポ・自作色を格納）
-const hx=h=>[1,3,5].map(i=>parseInt(h.slice(i,i+2),16));
-function encode(){
-  const head=[0,SC.get(),TP.get(),...CUSTOM.flatMap(hx)];
-  const raw=new Uint8Array(H+N*N/2);raw.set(head);
-  for(let i=0;i<N*N;i++)raw[H+(i>>1)]|=(i&1)?grid[i]:grid[i]<<4;
-  const r=[1,...head.slice(1)];let i=0;
-  while(i<N*N){let j=i;while(j<N*N&&grid[j]===grid[i]&&j-i<4096)j++;const v=(grid[i]<<12)|(j-i-1);r.push(v>>8,v&255);i=j;}
-  const b=r.length<raw.length?Uint8Array.from(r):raw;
-  return btoa(String.fromCharCode(...b)).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
-}
-function decode(s){
-  const b=Uint8Array.from(atob(s.replace(/-/g,'+').replace(/_/g,'/')),c=>c.charCodeAt(0));
-  const g=new Uint8Array(N*N);
-  if(b[0]===0){for(let i=0;i<N*N;i++){const v=b[H+(i>>1)];g[i]=(i&1)?v&15:v>>4;}}
-  else{let p=H,i=0;while(p<b.length&&i<N*N){const v=(b[p]<<8)|b[p+1];p+=2;const run=(v&4095)+1;g.fill(v>>12,i,i+run);i+=run;}}
-  const cu=[0,1,2].map(k=>'#'+[0,1,2].map(m=>b[3+k*3+m].toString(16).padStart(2,'0')).join(''));
-  return{g,sc:b[1],tp:b[2],cu};
-}
-$('qrb').onclick=()=>{
-  if(!grid.some(v=>v)){$('msg').textContent='まず絵をかいてね！';return;}
-  const url=location.href.split('#')[0]+'#d='+encode();
-  try{
-    const qr=qrcode(0,'L');qr.addData(url);qr.make();
-    const m=qr.getModuleCount(),px=Math.max(3,Math.floor(720/(m+8))),sz=(m+8)*px,q=$('qr');
-    q.width=q.height=sz;const x=q.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,sz,sz);x.fillStyle='#000';
-    for(let r=0;r<m;r++)for(let c=0;c<m;c++)if(qr.isDark(r,c))x.fillRect((c+4)*px,(r+4)*px,px,px);
-    $('qrinfo').textContent='絵と音のデータ入り（'+url.length+'文字）';
-    $('modal').style.display='flex';
-  }catch(e){$('msg').textContent='絵が細かすぎてQRに入りません。色をまとめてシンプルにしてね。';}
-};
-$('qrclose').onclick=()=>$('modal').style.display='none';
-
-try{const h=location.hash.match(/d=([\w-]+)/);if(h){const d=decode(h[1]);grid=d.g;d.cu.forEach((c,i)=>{CUSTOM[i]=c;COL[13+i]=c;});paint();SC.set(Math.min(3,d.sc));TP.set(Math.min(2,d.tp));$('msg').textContent='持ち帰った絵をよみこみました。▶で曲が聞けます！';}}catch(e){}
-render();
+let ok=false;
+try{const h=location.hash.match(/d=([\w-]+)/);if(h){decode(h[1]);ok=grid.some(v=>v);}}catch(e){}
+if(ok){render();}
+else{$('art').style.display='none';$('play').style.display='none';$('empty').style.display='block';$('msg').textContent='';}
 </script></body></html>
