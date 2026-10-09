@@ -39,7 +39,7 @@ const STY=[
  {n:'🎍 和風',sc:[0,1,5,7,8],mul:.8,inst:'koto',oct:0,hop:2,len:8,ex:[],dr:3,ec:4,ef:.35},
  {n:'👾 8bit',sc:[0,2,4,7,9],mul:1.3,inst:'chip',oct:12,hop:1,len:1.5,ex:[],dr:4,ec:0,ef:0},
  {n:'🌙 しっとり',sc:[0,2,3,5,7,8,10],mul:.7,inst:'pad',oct:0,hop:4,len:7,ex:[7],dr:0,ec:6,ef:.5},
- {n:'🎧 テクノ',sc:[0,2,3,5,7,8,10],mul:1.2,inst:'acid',oct:-12,hop:2,len:1.6,ex:[],dr:5,ec:3,ef:.4}];
+ {n:'🎠 オルゴール',sc:[0,2,4,5,7,9,11],mul:.85,inst:'musicbox',oct:0,hop:2,len:6,ex:[],dr:0,ec:4,ef:.3}];
 const BR={sine:.3,triangle:.5,square:.7,sawtooth:1};
 const BPM=[90,120,160];
 let grid=new Uint8Array(N*N),sty=0,tp=1,playing=false,playCol=-1;
@@ -56,18 +56,36 @@ function decode(s){
 function render(){
   const S=10;ctx.fillStyle=getComputedStyle(document.documentElement).getPropertyValue('--cv').trim();ctx.fillRect(0,0,640,640);
   for(let y=0;y<N;y++)for(let x=0;x<N;x++){const v=grid[y*N+x];if(v&&COL[v]){ctx.fillStyle=COL[v];ctx.fillRect(x*S,y*S,S+.4,S+.4);}}
-  if(playCol>=0){const g=ctx.createLinearGradient(0,0,0,640);g.addColorStop(0,'rgba(255,111,165,.45)');g.addColorStop(1,'rgba(106,141,255,.45)');ctx.fillStyle=g;ctx.fillRect(playCol*S,0,S,640);}
+  if(playCol>=0){const g=ctx.createLinearGradient(0,0,0,640);g.addColorStop(0,'rgba(255,111,165,.45)');g.addColorStop(1,'rgba(106,141,255,.45)');ctx.fillStyle=g;ctx.fillRect(playCol*S,0,S,640);
+    const h=STY[sty].hop;ctx.beginPath();let first=true;
+    for(let c=0;c<=playCol;c+=h){const r=leadRow(c);if(r===null)continue;const px=(c+h/2)*S,py=(r+.5)*S;if(first){ctx.moveTo(px,py);first=false;}else ctx.lineTo(px,py);}
+    ctx.lineJoin=ctx.lineCap='round';ctx.strokeStyle='rgba(255,255,255,.9)';ctx.lineWidth=5;ctx.stroke();ctx.strokeStyle='#ff4f93';ctx.lineWidth=2.5;ctx.stroke();
+    const r=leadRow(playCol);if(r!==null){ctx.beginPath();ctx.arc((playCol+.5)*S,(r+.5)*S,S*1.3,0,Math.PI*2);ctx.fillStyle='#fff';ctx.fill();ctx.lineWidth=3;ctx.strokeStyle='#ff4f93';ctx.stroke();}}
 }
 function hsl(hex){const r=parseInt(hex.slice(1,3),16)/255,g=parseInt(hex.slice(3,5),16)/255,b=parseInt(hex.slice(5,7),16)/255,mx=Math.max(r,g,b),mn=Math.min(r,g,b),l=(mx+mn)/2;let h=0;
   if(mx!==mn){const d=mx-mn;h=mx===r?(g-b)/d+(g<b?6:0):mx===g?(b-r)/d+2:(r-g)/d+4;h*=60;}return[h,l];}
 function timbre(v){if(v<=12)return TIMBRE[v];const[h,l]=hsl(COL[v]);return[['sine','triangle','square','sawtooth'][Math.floor(h/90)%4],l>.65?12:l<.35?-12:0];}
-function columnNotes(x,h){
-  const cnt={},sum={};
-  for(let xx=x;xx<Math.min(N,x+h);xx++)for(let y=0;y<N;y++){const v=grid[y*N+xx];if(v){cnt[v]=(cnt[v]||0)+1;sum[v]=(sum[v]||0)+y;}}
-  const st=STY[sty],s=st.sc,n=s.length*3;
-  return Object.keys(cnt).sort((a,b)=>cnt[b]-cnt[a]||a-b).slice(0,3).map(v=>{
-    const row=sum[v]/cnt[v],i=Math.min(n-1,Math.floor((N-1-Math.floor(row))/N*n)),t=timbre(+v);
-    return{midi:Math.max(36,48+12*Math.floor(i/s.length)+s[i%s.length]+t[1]+st.oct),br:BR[t[0]]};});
+// ---- 絵 → 音 ----
+// リード＝絵の輪郭（各列でいちばん上のドット）、ハーモニー＝使った色、ベース＝絵の底、
+// 音量＝絵の濃さ、空白の列＝休符、キー＝いちばん多く使った色
+function leadRow(col){const h=STY[sty].hop,x=Math.floor(col/h)*h,t=[];
+  for(let xx=x;xx<Math.min(N,x+h);xx++)for(let y=0;y<N;y++)if(grid[y*N+xx]){t.push(y);break;}
+  return t.length?t.reduce((a,b)=>a+b)/t.length:null;}
+function dominantRoot(){const c=new Array(16).fill(0);for(const v of grid)if(v)c[v]++;let m=0,b=0;for(let i=1;i<16;i++)if(c[i]>0&&c[i]>=b){m=i;b=c[i];}return m?(m-1)%12:0;}
+function midiOf(row,st,root){const s=st.sc,n=s.length*3,i=Math.min(n-1,Math.max(0,Math.floor((N-1-row)/N*n)));return 48+root+12*Math.floor(i/s.length)+s[i%s.length]+st.oct;}
+function groupNotes(x,h,root){
+  const st=STY[sty],tops=[],bots=[],topC={},cnt={},sum={};let ink=0;
+  for(let xx=x;xx<Math.min(N,x+h);xx++){let top=-1,bot=-1;
+    for(let y=0;y<N;y++){const v=grid[y*N+xx];if(v){if(top<0){top=y;topC[v]=(topC[v]||0)+1;}bot=y;ink++;cnt[v]=(cnt[v]||0)+1;sum[v]=(sum[v]||0)+y;}}
+    if(top>=0){tops.push(top);bots.push(bot);}}
+  if(!tops.length)return[];
+  const avg=a=>a.reduce((p,q)=>p+q,0)/a.length,vol=.5+.5*Math.min(1,ink/(h*24)),out=[];
+  const lc=+Object.keys(topC).sort((a,b)=>topC[b]-topC[a]||a-b)[0];
+  out.push({midi:Math.max(36,midiOf(avg(tops),st,root)),br:BR[timbre(lc)[0]],g:vol});
+  Object.keys(cnt).sort((a,b)=>cnt[b]-cnt[a]||a-b).slice(0,2).forEach(v=>{const t=timbre(+v);
+    out.push({midi:Math.max(36,midiOf(sum[v]/cnt[v],st,root)+t[1]),br:BR[t[0]],g:.45*vol});});
+  if((x/h)%2===0)out.push({midi:Math.max(36,midiOf(avg(bots),st,root)-12),br:.4,g:.65*vol});
+  return out;
 }
 const TP=2*Math.PI,saw=p=>2*(p-Math.floor(p))-1,tri=p=>4*Math.abs(p-Math.floor(p)-.5)-1;
 // 楽器：f=周波数, br=明るさ(色で変わる), dur=音の長さ(秒)
@@ -87,9 +105,9 @@ function voice(inst,f,br,dur){
     const vib=.06*Math.sin(TP*5*t);let s=0;
     for(let k=0;k<2;k++){const p=f*(1+.006*(k-.5))*t+vib;s+=.6*Math.sin(TP*p)+.4*tri(p)+br*.25*Math.sin(TP*2*p);}
     return .1*Math.min(t/.15,1)*Math.exp(-1.3*t/dur)*s;};
-  let l1=0,l2=0;return t=>{ // アシッド（フィルターが開閉するシンセ）
-    const fc=250+(500+3800*br)*Math.exp(-7*t/dur),a=1-Math.exp(-TP*fc/SR),x=.5*(saw(f*t)+saw(f*1.01*t));
-    l1+=a*(x-l1);l2+=a*(l1-l2);return .45*Math.min(t/.003,1)*Math.exp(-2*t/dur)*l2;};
+  const R=[1,2.76,5.4,8.93],A=[1,.35,.18,.08],D=[3,7,13,24]; // オルゴール（金属の櫛の響き）
+  return t=>{let v=0;for(let k=0;k<4;k++){if(f*R[k]>9000)continue;v+=A[k]*(k?.5+br:1)*Math.exp(-D[k]*t/dur)*Math.sin(TP*f*R[k]*t);}
+    return .14*Math.min(t/.002,1)*v;};
 }
 function hits(k,p){const r=[];
   if(k===1){if(p===0||p===8)r.push(0);if(p===4||p===12)r.push(1);if(p%2===0)r.push(2);}
@@ -106,14 +124,14 @@ function renderSong(){
     else if(k===1)mix(start,.14*SR|0,t=>Math.exp(-t*24)*(.22*(Math.random()*2-1)+.18*Math.sin(TP*190*t)));
     else if(k===2)mix(start,.05*SR|0,t=>{const nz=Math.random()*2-1,r=.09*Math.exp(-t*80)*(nz-prev);prev=nz;return r;});
     else mix(start,.45*SR|0,t=>{ph+=TP*(62+60*Math.exp(-t*14))/SR;return .6*Math.exp(-t*7)*Math.sin(ph);});};
-  const len=Math.floor(noteLen*SR);
-  for(let x=0;x<N;x++){
+  const len=Math.floor(noteLen*SR),root=dominantRoot();
+  for(let x=0;x<N;x+=st.hop){
     const start=Math.floor(x*step*SR);
-    if(x%st.hop===0)columnNotes(x,st.hop).forEach(nt=>[0,...st.ex].forEach((off,k)=>{
-      const f=440*Math.pow(2,(nt.midi+off-69)/12),v=voice(st.inst,f,nt.br,noteLen),g=k===0?1:.6;
+    groupNotes(x,st.hop,root).forEach(nt=>[0,...st.ex].forEach((off,k)=>{
+      const f=440*Math.pow(2,(nt.midi+off-69)/12),v=voice(st.inst,f,nt.br,noteLen),g=nt.g*(k===0?1:.6);
       mix(start,len,t=>g*v(t)*Math.min(1,(noteLen-t)/.02));}));
-    hits(st.dr,x%16).forEach(h=>drum(h,start));
   }
+  for(let x=0;x<N;x++)hits(st.dr,x%16).forEach(h=>drum(h,Math.floor(x*step*SR)));
   if(st.ec>0){const d=Math.floor(st.ec*step*SR);for(let i=d;i<frames;i++)s[i]+=st.ef*s[i-d];}
   let e=0;for(let i=0;i<frames;i++)e+=s[i]*s[i];
   const gain=Math.min(5,.17/Math.max(Math.sqrt(e/frames),1e-6));
