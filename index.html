@@ -31,15 +31,16 @@ button:active{transform:scale(.97)}
 <div class="panel" id="empty">QRコードをよみとると、<br>ここに えと きょくが ひょうじされます。</div>
 <script>
 const N=64,H=12,SR=44100,$=id=>document.getElementById(id);
-const COL=[null,'#ff3b30','#ffbfcc','#ffff00','#80ccff','#007aff','#34c759','#ccb3e6','#ff9900','#fae0c7','#cc8033','#8e8e93','#000000','#000','#000','#000'];
+const COL=[null,'#ff3b30','#ffbfcc','#ffff00','#80ccff','#007aff','#34c759','#ccb3e6','#ff9900','#fae0c7','#cc8033','#8e8e93','#000000','#ff66c4','#16c7a8','#8a5cff'];
 const TIMBRE=[null,['square',0],['triangle',12],['triangle',12],['sine',12],['square',0],['sine',0],['sawtooth',0],['triangle',0],['sine',0],['triangle',-12],['sine',-12],['sawtooth',-12]];
 const STY=[
- {n:'🎈 ポップ',sc:[0,2,4,5,7,9,11],mul:1,w:null,oct:0,len:2.2,dec:6.9,ex:[],dr:1},
- {n:'🎸 ロック',sc:[0,3,5,7,10],mul:1.1,w:'sawtooth',oct:-12,len:1.8,dec:5,ex:[7],dr:2},
- {n:'🎍 和風',sc:[0,1,5,7,8],mul:.8,w:'triangle',oct:0,len:3,dec:10,ex:[],dr:3},
- {n:'👾 8bit',sc:[0,2,4,7,9],mul:1.3,w:'square',oct:12,len:1.2,dec:4,ex:[],dr:4},
- {n:'🌙 しっとり',sc:[0,2,3,5,7,8,10],mul:.7,w:'sine',oct:0,len:6,dec:2.5,ex:[],dr:0},
- {n:'🎧 テクノ',sc:[0,2,3,5,7,8,10],mul:1.2,w:'sawtooth',oct:-12,len:1.5,dec:6,ex:[12],dr:5}];
+ {n:'🎹 ポップ',sc:[0,2,4,5,7,9,11],mul:1,inst:'epiano',oct:0,hop:2,len:3,ex:[],dr:1,ec:0,ef:0},
+ {n:'🎸 ロック',sc:[0,3,5,7,10],mul:1.1,inst:'guitar',oct:-12,hop:2,len:2.5,ex:[7],dr:2,ec:3,ef:.25},
+ {n:'🎍 和風',sc:[0,1,5,7,8],mul:.8,inst:'koto',oct:0,hop:2,len:8,ex:[],dr:3,ec:4,ef:.35},
+ {n:'👾 8bit',sc:[0,2,4,7,9],mul:1.3,inst:'chip',oct:12,hop:1,len:1.5,ex:[],dr:4,ec:0,ef:0},
+ {n:'🌙 しっとり',sc:[0,2,3,5,7,8,10],mul:.7,inst:'pad',oct:0,hop:4,len:7,ex:[7],dr:0,ec:6,ef:.5},
+ {n:'🎧 テクノ',sc:[0,2,3,5,7,8,10],mul:1.2,inst:'acid',oct:-12,hop:2,len:1.6,ex:[],dr:5,ec:3,ef:.4}];
+const BR={sine:.3,triangle:.5,square:.7,sawtooth:1};
 const BPM=[90,120,160];
 let grid=new Uint8Array(N*N),sty=0,tp=1,playing=false,playCol=-1;
 const ctx=$('c').getContext('2d');
@@ -60,19 +61,36 @@ function render(){
 function hsl(hex){const r=parseInt(hex.slice(1,3),16)/255,g=parseInt(hex.slice(3,5),16)/255,b=parseInt(hex.slice(5,7),16)/255,mx=Math.max(r,g,b),mn=Math.min(r,g,b),l=(mx+mn)/2;let h=0;
   if(mx!==mn){const d=mx-mn;h=mx===r?(g-b)/d+(g<b?6:0):mx===g?(b-r)/d+2:(r-g)/d+4;h*=60;}return[h,l];}
 function timbre(v){if(v<=12)return TIMBRE[v];const[h,l]=hsl(COL[v]);return[['sine','triangle','square','sawtooth'][Math.floor(h/90)%4],l>.65?12:l<.35?-12:0];}
-function columnNotes(x){
+function columnNotes(x,h){
   const cnt={},sum={};
-  for(let y=0;y<N;y++){const v=grid[y*N+x];if(v){cnt[v]=(cnt[v]||0)+1;sum[v]=(sum[v]||0)+y;}}
+  for(let xx=x;xx<Math.min(N,x+h);xx++)for(let y=0;y<N;y++){const v=grid[y*N+xx];if(v){cnt[v]=(cnt[v]||0)+1;sum[v]=(sum[v]||0)+y;}}
   const st=STY[sty],s=st.sc,n=s.length*3;
   return Object.keys(cnt).sort((a,b)=>cnt[b]-cnt[a]||a-b).slice(0,3).map(v=>{
     const row=sum[v]/cnt[v],i=Math.min(n-1,Math.floor((N-1-Math.floor(row))/N*n)),t=timbre(+v);
-    return{midi:Math.max(36,48+12*Math.floor(i/s.length)+s[i%s.length]+t[1]+st.oct),wave:st.w||t[0]};});
+    return{midi:Math.max(36,48+12*Math.floor(i/s.length)+s[i%s.length]+t[1]+st.oct),br:BR[t[0]]};});
 }
-function osc(w,p){const f=p-Math.floor(p);
-  if(w==='sine')return Math.sin(2*Math.PI*p);
-  if(w==='square')return(f<.5?1:-1)*.6;
-  if(w==='sawtooth')return(2*f-1)*.6;
-  return 4*Math.abs(f-.5)-1;}
+const TP=2*Math.PI,saw=p=>2*(p-Math.floor(p))-1,tri=p=>4*Math.abs(p-Math.floor(p)-.5)-1;
+// 楽器：f=周波数, br=明るさ(色で変わる), dur=音の長さ(秒)
+function voice(inst,f,br,dur){
+  if(inst==='epiano')return t=>{ // エレピ（FM合成）
+    const idx=(1+2.5*br)*Math.exp(-5*t/dur),e=Math.min(t/.004,1)*Math.exp(-3.2*t/dur);
+    return .16*e*(Math.sin(TP*f*t+idx*Math.sin(TP*f*t))+.25*Math.sin(TP*f*14*t)*Math.exp(-30*t));};
+  if(inst==='guitar'){let lp=0;const a=1-Math.exp(-TP*(700+3500*br)/SR);return t=>{ // 歪んだギター
+    const x=.5*(saw(f*t)+saw(f*1.006*t));lp+=a*(x-lp);
+    return .2*Math.min(t/.003,1)*Math.exp(-2.5*t/dur)*Math.tanh(5*lp);};}
+  if(inst==='koto'){const n=Math.max(2,Math.round(SR/f)),b=new Float32Array(n);let i=0;const d=.994+.005*br; // 琴（弦のシミュレーション）
+    for(let k=0;k<n;k++)b[k]=Math.random()*2-1;
+    return()=>{const y=b[i];b[i]=d*.5*(y+b[(i+1)%n]);i=(i+1)%n;return .22*y;};}
+  if(inst==='chip'){const duty=.5-.375*br;return t=>{ // ファミコン（パルス波）
+    const p=f*t,ph=p-Math.floor(p),e=Math.floor(Math.exp(-4*t/dur)*6)/6;return .1*e*(ph<duty?1:-1);};}
+  if(inst==='pad')return t=>{ // ふわっとしたストリングス
+    const vib=.06*Math.sin(TP*5*t);let s=0;
+    for(let k=0;k<2;k++){const p=f*(1+.006*(k-.5))*t+vib;s+=.6*Math.sin(TP*p)+.4*tri(p)+br*.25*Math.sin(TP*2*p);}
+    return .1*Math.min(t/.15,1)*Math.exp(-1.3*t/dur)*s;};
+  let l1=0,l2=0;return t=>{ // アシッド（フィルターが開閉するシンセ）
+    const fc=250+(500+3800*br)*Math.exp(-7*t/dur),a=1-Math.exp(-TP*fc/SR),x=.5*(saw(f*t)+saw(f*1.01*t));
+    l1+=a*(x-l1);l2+=a*(l1-l2);return .45*Math.min(t/.003,1)*Math.exp(-2*t/dur)*l2;};
+}
 function hits(k,p){const r=[];
   if(k===1){if(p===0||p===8)r.push(0);if(p===4||p===12)r.push(1);if(p%2===0)r.push(2);}
   else if(k===2){if(p===0||p===8||p===10)r.push(0);if(p===4||p===12)r.push(1);if(p%2===0)r.push(2);}
@@ -81,31 +99,39 @@ function hits(k,p){const r=[];
   else if(k===5){if(p%4===0)r.push(0);if(p===4||p===12)r.push(1);if(p%4===2)r.push(2);}
   return r;}
 function renderSong(){
-  const st=STY[sty],step=60/(BPM[tp]*st.mul)/4,noteLen=step*st.len,total=(N+st.len+3)*step+.3,frames=Math.floor(total*SR),s=new Float32Array(frames);
+  const st=STY[sty],step=60/(BPM[tp]*st.mul)/4,noteLen=step*st.len,total=(N+st.len+3+st.ec*4)*step+.3,frames=Math.floor(total*SR),s=new Float32Array(frames);
   const mix=(start,len,fn)=>{for(let i=0;i<len;i++){const idx=start+i;if(idx>=frames)break;s[idx]+=fn(i/SR);}};
   const drum=(k,start)=>{let ph=0,prev=0;
-    if(k===0)mix(start,.2*SR|0,t=>{ph+=2*Math.PI*(50+110*Math.exp(-t*28))/SR;return .55*Math.exp(-t*16)*Math.sin(ph);});
-    else if(k===1)mix(start,.14*SR|0,t=>Math.exp(-t*24)*(.22*(Math.random()*2-1)+.18*Math.sin(2*Math.PI*190*t)));
+    if(k===0)mix(start,.2*SR|0,t=>{ph+=TP*(50+110*Math.exp(-t*28))/SR;return .55*Math.exp(-t*16)*Math.sin(ph);});
+    else if(k===1)mix(start,.14*SR|0,t=>Math.exp(-t*24)*(.22*(Math.random()*2-1)+.18*Math.sin(TP*190*t)));
     else if(k===2)mix(start,.05*SR|0,t=>{const nz=Math.random()*2-1,r=.09*Math.exp(-t*80)*(nz-prev);prev=nz;return r;});
-    else mix(start,.45*SR|0,t=>{ph+=2*Math.PI*(62+60*Math.exp(-t*14))/SR;return .6*Math.exp(-t*7)*Math.sin(ph);});};
+    else mix(start,.45*SR|0,t=>{ph+=TP*(62+60*Math.exp(-t*14))/SR;return .6*Math.exp(-t*7)*Math.sin(ph);});};
+  const len=Math.floor(noteLen*SR);
   for(let x=0;x<N;x++){
-    const start=Math.floor(x*step*SR),len=Math.floor(noteLen*SR);
-    columnNotes(x).forEach(nt=>[0,...st.ex].forEach((off,k)=>{
-      const f=440*Math.pow(2,(nt.midi+off-69)/12),g=k===0?.10:.06;
-      mix(start,len,t=>g*Math.min(t/.008,1)*Math.exp(-st.dec*t/noteLen)*osc(nt.wave,f*t));}));
+    const start=Math.floor(x*step*SR);
+    if(x%st.hop===0)columnNotes(x,st.hop).forEach(nt=>[0,...st.ex].forEach((off,k)=>{
+      const f=440*Math.pow(2,(nt.midi+off-69)/12),v=voice(st.inst,f,nt.br,noteLen),g=k===0?1:.6;
+      mix(start,len,t=>g*v(t)*Math.min(1,(noteLen-t)/.02));}));
     hits(st.dr,x%16).forEach(h=>drum(h,start));
   }
-  for(let i=0;i<frames;i++)s[i]=Math.tanh(s[i]);
+  if(st.ec>0){const d=Math.floor(st.ec*step*SR);for(let i=d;i<frames;i++)s[i]+=st.ef*s[i-d];}
+  let e=0;for(let i=0;i<frames;i++)e+=s[i]*s[i];
+  const gain=Math.min(5,.17/Math.max(Math.sqrt(e/frames),1e-6));
+  for(let i=0;i<frames;i++)s[i]=Math.tanh(s[i]*gain);
   return{s,total,step};
 }
 let ac=null;
 function play(){
   if(playing)return;
+  playing=true;$('play').textContent='♪ つくっています…';
   ac=ac||new (window.AudioContext||window.webkitAudioContext)();ac.resume();
+  setTimeout(go,40);
+}
+function go(){
   const song=renderSong(),buf=ac.createBuffer(1,song.s.length,SR);buf.copyToChannel(song.s,0);
   const src=ac.createBufferSource();src.buffer=buf;src.connect(ac.destination);
   const t0=ac.currentTime+.1;src.start(t0);
-  playing=true;$('play').textContent='♪ ながれています…';
+  $('play').textContent='♪ ながれています…';
   (function loop(){const e=ac.currentTime-t0;
     if(e>song.total){playing=false;playCol=-1;render();$('play').textContent='▶ もういちどきく';return;}
     const c=Math.floor(e/song.step);playCol=c>=0&&c<N?c:-1;render();requestAnimationFrame(loop);})();
