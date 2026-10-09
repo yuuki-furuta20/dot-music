@@ -20,13 +20,16 @@ p.sub{margin:0;color:var(--sub);font-size:.9rem;font-weight:700;text-align:cente
 canvas{width:100%;aspect-ratio:1;display:block;border-radius:16px;background:var(--cv);box-shadow:inset 0 0 0 1px var(--line);touch-action:manipulation}
 button{font:inherit;font-weight:900;font-size:1.15rem;border:0;border-radius:999px;padding:16px;width:min(94vw,520px);cursor:pointer;color:#fff;background:linear-gradient(135deg,var(--g1),var(--g2));box-shadow:0 6px 16px rgba(255,111,165,.45)}
 button:active{transform:scale(.97)}
+.row{display:flex;gap:10px;width:min(94vw,520px)}.row #play{flex:1;width:auto}
+.ic{width:58px!important;padding:0!important;background:var(--card)!important;color:var(--fg)!important;box-shadow:none!important;border:2px solid var(--line)!important;opacity:.55;font-size:1.3rem!important}
+.ic.on{opacity:1;background:linear-gradient(135deg,var(--g3),#8a5cff)!important;color:#fff!important;border-color:transparent!important}
 #empty{display:none;text-align:center;line-height:1.8;padding:30px 10px;font-weight:700}
 #msg{font-size:.85rem;color:var(--sub);font-weight:700;text-align:center;min-height:1.2em}
 </style></head><body>
 <h1>♪ DOT×MUSIC</h1>
 <p class="sub" id="info">あなたがつくった えと きょく</p>
 <div class="panel" id="art"><canvas id="c" width="640" height="640"></canvas></div>
-<button id="play">▶ きょくをきく</button>
+<div class="row"><button id="loop" class="ic on" title="くりかえし" aria-label="くりかえし">🔁</button><button id="play">▶ きょくをきく</button></div>
 <div id="msg"></div>
 <div class="panel" id="empty">QRコードをよみとると、<br>ここに えと きょくが ひょうじされます。</div>
 <script>
@@ -57,6 +60,10 @@ function render(){
   const S=10;ctx.fillStyle=getComputedStyle(document.documentElement).getPropertyValue('--cv').trim();ctx.fillRect(0,0,640,640);
   for(let y=0;y<N;y++)for(let x=0;x<N;x++){const v=grid[y*N+x];if(v&&COL[v]){ctx.fillStyle=COL[v];ctx.fillRect(x*S,y*S,S+.4,S+.4);}}
   if(playCol>=0){const g=ctx.createLinearGradient(0,0,0,640);g.addColorStop(0,'rgba(255,111,165,.45)');g.addColorStop(1,'rgba(106,141,255,.45)');ctx.fillStyle=g;ctx.fillRect(playCol*S,0,S,640);
+    {const hb=STY[sty].hop;ctx.beginPath();let f=true;
+      for(let c=0;c<=playCol;c+=hb*2){const r=bassRow(c);if(r===null)continue;const px=(c+hb/2)*S,py=(r+.5)*S;if(f){ctx.moveTo(px,py);f=false;}else ctx.lineTo(px,py);}
+      ctx.lineJoin=ctx.lineCap='round';ctx.strokeStyle='rgba(255,255,255,.9)';ctx.lineWidth=5;ctx.stroke();ctx.strokeStyle='#00ecd5';ctx.lineWidth=3;ctx.stroke();
+      const rb=bassRow(playCol);if(rb!==null){ctx.beginPath();ctx.arc((playCol+.5)*S,(rb+.5)*S,S*1.1,0,Math.PI*2);ctx.fillStyle='#fff';ctx.fill();ctx.lineWidth=3;ctx.strokeStyle='#00ecd5';ctx.stroke();}}
     const h=STY[sty].hop;ctx.beginPath();let first=true;
     for(let c=0;c<=playCol;c+=h){const r=leadRow(c);if(r===null)continue;const px=(c+h/2)*S,py=(r+.5)*S;if(first){ctx.moveTo(px,py);first=false;}else ctx.lineTo(px,py);}
     ctx.lineJoin=ctx.lineCap='round';ctx.strokeStyle='rgba(255,255,255,.9)';ctx.lineWidth=5;ctx.stroke();ctx.strokeStyle='#ff4f93';ctx.lineWidth=2.5;ctx.stroke();
@@ -70,6 +77,9 @@ function timbre(v){if(v<=12)return TIMBRE[v];const[h,l]=hsl(COL[v]);return[['sin
 // 音量＝絵の濃さ、空白の列＝休符、キー＝いちばん多く使った色
 function leadRow(col){const h=STY[sty].hop,x=Math.floor(col/h)*h,t=[];
   for(let xx=x;xx<Math.min(N,x+h);xx++)for(let y=0;y<N;y++)if(grid[y*N+xx]){t.push(y);break;}
+  return t.length?t.reduce((a,b)=>a+b)/t.length:null;}
+function bassRow(col){const h=STY[sty].hop;let x=Math.floor(col/h)*h;if((x/h)%2)x-=h;const t=[];
+  for(let xx=x;xx<Math.min(N,x+h);xx++)for(let y=N-1;y>=0;y--)if(grid[y*N+xx]){t.push(y);break;}
   return t.length?t.reduce((a,b)=>a+b)/t.length:null;}
 function dominantRoot(){const c=new Array(16).fill(0);for(const v of grid)if(v)c[v]++;let m=0,b=0;for(let i=1;i<16;i++)if(c[i]>0&&c[i]>=b){m=i;b=c[i];}return m?(m-1)%12:0;}
 function midiOf(row,st,root){const s=st.sc,n=s.length*3,i=Math.min(n-1,Math.max(0,Math.floor((N-1-row)/N*n)));return 48+root+12*Math.floor(i/s.length)+s[i%s.length]+st.oct;}
@@ -138,25 +148,50 @@ function renderSong(){
   for(let i=0;i<frames;i++)s[i]=Math.tanh(s[i]*gain);
   return{s,total,step};
 }
-let ac=null;
+let ac=null,song=null,wbuf=null,pbuf=null,cur=null,t0=0,loopOn=true;
+const mk=a=>{const b=ac.createBuffer(1,a.length,SR);b.copyToChannel(a,0);return b;};
+// いまの位置(offsetSec)から流す。fade=true のときは前の音とクロスフェード
+function startSrc(offsetSec,fade){
+  const g=ac.createGain(),src=ac.createBufferSource(),now=ac.currentTime;
+  src.buffer=loopOn?wbuf:pbuf;src.loop=loopOn;src.connect(g);g.connect(ac.destination);
+  if(fade){g.gain.setValueAtTime(0,now);g.gain.linearRampToValueAtTime(1,now+.06);}
+  src.start(now+.02,offsetSec);t0=now+.02-offsetSec;
+  const old=cur;cur={src,g};
+  if(old){old.g.gain.cancelScheduledValues(now);old.g.gain.setValueAtTime(old.g.gain.value,now);old.g.gain.linearRampToValueAtTime(0,now+.06);old.src.stop(now+.08);}
+}
+function stopAll(){
+  playing=false;playCol=-1;
+  if(cur&&ac){const n=ac.currentTime;cur.g.gain.cancelScheduledValues(n);cur.g.gain.setValueAtTime(cur.g.gain.value,n);cur.g.gain.linearRampToValueAtTime(0,n+.1);cur.src.stop(n+.12);}
+  cur=null;render();$('play').textContent='▶ きょくをきく';
+}
 function play(){
-  if(playing)return;
+  if(playing){stopAll();return;}
   playing=true;$('play').textContent='♪ つくっています…';
   ac=ac||new (window.AudioContext||window.webkitAudioContext)();ac.resume();
   setTimeout(go,40);
 }
 function go(){
-  const song=renderSong(),buf=ac.createBuffer(1,song.s.length,SR);buf.copyToChannel(song.s,0);
-  const src=ac.createBufferSource();src.buffer=buf;src.connect(ac.destination);
-  const t0=ac.currentTime+.1;src.start(t0);
-  $('play').textContent='♪ ながれています…';
-  (function loop(){const e=ac.currentTime-t0;
-    if(e>song.total){playing=false;playCol=-1;render();$('play').textContent='▶ もういちどきく';return;}
-    const c=Math.floor(e/song.step);playCol=c>=0&&c<N?c:-1;render();requestAnimationFrame(loop);})();
+  if(!playing)return;
+  song=renderSong();
+  const L=Math.floor(N*song.step*SR),w=song.s.slice(0,L);
+  for(let i=L;i<song.s.length;i++)if(i-L<L)w[i-L]+=song.s[i];   // 余韻を頭に重ねて、つなぎ目のないループにする
+  pbuf=mk(song.s);wbuf=mk(w);song.Lsec=L/SR;
+  startSrc(0,false);
+  $('play').textContent='■ とめる';
+  (function loop(){
+    if(!playing)return;
+    const e=ac.currentTime-t0;
+    if(loopOn){playCol=Math.min(N-1,Math.floor((e%song.Lsec)/song.step));}
+    else{if(e>song.total){stopAll();return;}const c=Math.floor(e/song.step);playCol=c>=0&&c<N?c:-1;}
+    render();requestAnimationFrame(loop);})();
 }
+$('loop').onclick=()=>{
+  loopOn=!loopOn;$('loop').classList.toggle('on',loopOn);
+  if(playing&&cur&&song){const pos=((ac.currentTime-t0)%song.Lsec+song.Lsec)%song.Lsec;startSrc(pos,true);}
+};
 $('play').onclick=play;
 let ok=false;
 try{const h=location.hash.match(/d=([\w-]+)/);if(h){decode(h[1]);ok=grid.some(v=>v);}}catch(e){}
 if(ok){render();$('info').textContent='きょくちょう：'+STY[sty].n;}
-else{$('art').style.display='none';$('play').style.display='none';$('info').style.display='none';$('empty').style.display='block';}
+else{$('art').style.display='none';$('play').parentNode.style.display='none';$('info').style.display='none';$('empty').style.display='block';}
 </script></body></html>
