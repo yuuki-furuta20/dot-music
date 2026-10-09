@@ -24,18 +24,24 @@ button:active{transform:scale(.97)}
 #msg{font-size:.85rem;color:var(--sub);font-weight:700;text-align:center;min-height:1.2em}
 </style></head><body>
 <h1>♪ DOT×MUSIC</h1>
-<p class="sub">あなたがつくった えと きょく</p>
+<p class="sub" id="info">あなたがつくった えと きょく</p>
 <div class="panel" id="art"><canvas id="c" width="640" height="640"></canvas></div>
 <button id="play">▶ きょくをきく</button>
 <div id="msg"></div>
 <div class="panel" id="empty">QRコードをよみとると、<br>ここに えと きょくが ひょうじされます。</div>
 <script>
-const N=64,H=12,$=id=>document.getElementById(id);
+const N=64,H=12,SR=44100,$=id=>document.getElementById(id);
 const COL=[null,'#ff3b30','#ffbfcc','#ffff00','#80ccff','#007aff','#34c759','#ccb3e6','#ff9900','#fae0c7','#cc8033','#8e8e93','#000000','#000','#000','#000'];
 const TIMBRE=[null,['square',0],['triangle',12],['triangle',12],['sine',12],['square',0],['sine',0],['sawtooth',0],['triangle',0],['sine',0],['triangle',-12],['sine',-12],['sawtooth',-12]];
-const SCALES=[[0,2,4,7,9],[0,2,4,5,7,9,11],[0,2,3,5,7,8,10],[0,1,5,7,8]];
+const STY=[
+ {n:'🎈 ポップ',sc:[0,2,4,5,7,9,11],mul:1,w:null,oct:0,len:2.2,dec:6.9,ex:[],dr:1},
+ {n:'🎸 ロック',sc:[0,3,5,7,10],mul:1.1,w:'sawtooth',oct:-12,len:1.8,dec:5,ex:[7],dr:2},
+ {n:'🎍 和風',sc:[0,1,5,7,8],mul:.8,w:'triangle',oct:0,len:3,dec:10,ex:[],dr:3},
+ {n:'👾 8bit',sc:[0,2,4,7,9],mul:1.3,w:'square',oct:12,len:1.2,dec:4,ex:[],dr:4},
+ {n:'🌙 しっとり',sc:[0,2,3,5,7,8,10],mul:.7,w:'sine',oct:0,len:6,dec:2.5,ex:[],dr:0},
+ {n:'🎧 テクノ',sc:[0,2,3,5,7,8,10],mul:1.2,w:'sawtooth',oct:-12,len:1.5,dec:6,ex:[12],dr:5}];
 const BPM=[90,120,160];
-let grid=new Uint8Array(N*N),sc=0,tp=1,playing=false,playCol=-1;
+let grid=new Uint8Array(N*N),sty=0,tp=1,playing=false,playCol=-1;
 const ctx=$('c').getContext('2d');
 
 function decode(s){
@@ -44,7 +50,7 @@ function decode(s){
   if(b[0]===0){for(let i=0;i<N*N;i++){const v=b[H+(i>>1)];g[i]=(i&1)?v&15:v>>4;}}
   else{let p=H,i=0;while(p<b.length&&i<N*N){const v=(b[p]<<8)|b[p+1];p+=2;const run=(v&4095)+1;g.fill(v>>12,i,i+run);i+=run;}}
   for(let k=0;k<3;k++)COL[13+k]='#'+[0,1,2].map(m=>b[3+k*3+m].toString(16).padStart(2,'0')).join('');
-  grid=g;sc=Math.min(3,b[1]);tp=Math.min(2,b[2]);
+  grid=g;sty=Math.min(STY.length-1,b[1]);tp=Math.min(2,b[2]);
 }
 function render(){
   const S=10;ctx.fillStyle=getComputedStyle(document.documentElement).getPropertyValue('--cv').trim();ctx.fillRect(0,0,640,640);
@@ -57,29 +63,56 @@ function timbre(v){if(v<=12)return TIMBRE[v];const[h,l]=hsl(COL[v]);return[['sin
 function columnNotes(x){
   const cnt={},sum={};
   for(let y=0;y<N;y++){const v=grid[y*N+x];if(v){cnt[v]=(cnt[v]||0)+1;sum[v]=(sum[v]||0)+y;}}
-  const s=SCALES[sc],n=s.length*3;
-  return Object.keys(cnt).sort((a,b)=>cnt[b]-cnt[a]).slice(0,3).map(v=>{
-    const row=sum[v]/cnt[v],i=Math.min(n-1,Math.floor((N-1-row)/N*n)),t=timbre(+v);
-    return{midi:48+12*Math.floor(i/s.length)+s[i%s.length]+t[1],wave:t[0]};});
+  const st=STY[sty],s=st.sc,n=s.length*3;
+  return Object.keys(cnt).sort((a,b)=>cnt[b]-cnt[a]||a-b).slice(0,3).map(v=>{
+    const row=sum[v]/cnt[v],i=Math.min(n-1,Math.floor((N-1-Math.floor(row))/N*n)),t=timbre(+v);
+    return{midi:Math.max(36,48+12*Math.floor(i/s.length)+s[i%s.length]+t[1]+st.oct),wave:st.w||t[0]};});
+}
+function osc(w,p){const f=p-Math.floor(p);
+  if(w==='sine')return Math.sin(2*Math.PI*p);
+  if(w==='square')return(f<.5?1:-1)*.6;
+  if(w==='sawtooth')return(2*f-1)*.6;
+  return 4*Math.abs(f-.5)-1;}
+function hits(k,p){const r=[];
+  if(k===1){if(p===0||p===8)r.push(0);if(p===4||p===12)r.push(1);if(p%2===0)r.push(2);}
+  else if(k===2){if(p===0||p===8||p===10)r.push(0);if(p===4||p===12)r.push(1);if(p%2===0)r.push(2);}
+  else if(k===3){if(p===0||p===8)r.push(3);}
+  else if(k===4){if(p===4||p===12)r.push(1);if(p%4===2)r.push(2);}
+  else if(k===5){if(p%4===0)r.push(0);if(p===4||p===12)r.push(1);if(p%4===2)r.push(2);}
+  return r;}
+function renderSong(){
+  const st=STY[sty],step=60/(BPM[tp]*st.mul)/4,noteLen=step*st.len,total=(N+st.len+3)*step+.3,frames=Math.floor(total*SR),s=new Float32Array(frames);
+  const mix=(start,len,fn)=>{for(let i=0;i<len;i++){const idx=start+i;if(idx>=frames)break;s[idx]+=fn(i/SR);}};
+  const drum=(k,start)=>{let ph=0,prev=0;
+    if(k===0)mix(start,.2*SR|0,t=>{ph+=2*Math.PI*(50+110*Math.exp(-t*28))/SR;return .55*Math.exp(-t*16)*Math.sin(ph);});
+    else if(k===1)mix(start,.14*SR|0,t=>Math.exp(-t*24)*(.22*(Math.random()*2-1)+.18*Math.sin(2*Math.PI*190*t)));
+    else if(k===2)mix(start,.05*SR|0,t=>{const nz=Math.random()*2-1,r=.09*Math.exp(-t*80)*(nz-prev);prev=nz;return r;});
+    else mix(start,.45*SR|0,t=>{ph+=2*Math.PI*(62+60*Math.exp(-t*14))/SR;return .6*Math.exp(-t*7)*Math.sin(ph);});};
+  for(let x=0;x<N;x++){
+    const start=Math.floor(x*step*SR),len=Math.floor(noteLen*SR);
+    columnNotes(x).forEach(nt=>[0,...st.ex].forEach((off,k)=>{
+      const f=440*Math.pow(2,(nt.midi+off-69)/12),g=k===0?.10:.06;
+      mix(start,len,t=>g*Math.min(t/.008,1)*Math.exp(-st.dec*t/noteLen)*osc(nt.wave,f*t));}));
+    hits(st.dr,x%16).forEach(h=>drum(h,start));
+  }
+  for(let i=0;i<frames;i++)s[i]=Math.tanh(s[i]);
+  return{s,total,step};
 }
 let ac=null;
 function play(){
   if(playing)return;
   ac=ac||new (window.AudioContext||window.webkitAudioContext)();ac.resume();
-  const step=60/BPM[tp]/4,t0=ac.currentTime+.1;
-  for(let x=0;x<N;x++)columnNotes(x).forEach(nt=>{
-    const o=ac.createOscillator(),g=ac.createGain(),t=t0+x*step,d=step*2.2;
-    o.type=nt.wave;o.frequency.value=440*Math.pow(2,(nt.midi-69)/12);
-    g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(.12,t+.01);g.gain.exponentialRampToValueAtTime(.001,t+d);
-    o.connect(g).connect(ac.destination);o.start(t);o.stop(t+d+.05);});
+  const song=renderSong(),buf=ac.createBuffer(1,song.s.length,SR);buf.copyToChannel(song.s,0);
+  const src=ac.createBufferSource();src.buffer=buf;src.connect(ac.destination);
+  const t0=ac.currentTime+.1;src.start(t0);
   playing=true;$('play').textContent='♪ ながれています…';
-  (function loop(){const c=Math.floor((ac.currentTime-t0)/step);
-    if(c>=N+4){playing=false;playCol=-1;render();$('play').textContent='▶ もういちどきく';return;}
-    playCol=c>=0&&c<N?c:-1;render();requestAnimationFrame(loop);})();
+  (function loop(){const e=ac.currentTime-t0;
+    if(e>song.total){playing=false;playCol=-1;render();$('play').textContent='▶ もういちどきく';return;}
+    const c=Math.floor(e/song.step);playCol=c>=0&&c<N?c:-1;render();requestAnimationFrame(loop);})();
 }
 $('play').onclick=play;
 let ok=false;
 try{const h=location.hash.match(/d=([\w-]+)/);if(h){decode(h[1]);ok=grid.some(v=>v);}}catch(e){}
-if(ok){render();}
-else{$('art').style.display='none';$('play').style.display='none';$('empty').style.display='block';$('msg').textContent='';}
+if(ok){render();$('info').textContent='きょくちょう：'+STY[sty].n;}
+else{$('art').style.display='none';$('play').style.display='none';$('info').style.display='none';$('empty').style.display='block';}
 </script></body></html>
