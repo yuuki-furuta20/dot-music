@@ -19,7 +19,7 @@ body::before{content:"";position:fixed;left:0;right:0;top:0;height:60px;z-index:
 .swirl{position:absolute;inset:0;background:repeating-conic-gradient(var(--pink) 0 22.5deg,#fff 22.5deg 45deg,var(--sky) 45deg 67.5deg,#fff 67.5deg 90deg);animation:spin 14s linear infinite}
 .disc{position:absolute;inset:14%;background:#fff;border:3px solid var(--ink);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:2.35rem;font-weight:900;line-height:1;letter-spacing:.02em}
 .head::after{content:"";position:absolute;left:22px;top:16px;width:34px;height:17px;border-radius:50%;background:rgba(255,255,255,.65);transform:rotate(-35deg)}
-.stick{position:relative;width:15px;height:86px;margin-top:-14px;background:#fff;border:3px solid var(--ink);border-radius:8px}
+.stick{position:relative;width:15px;height:86px;margin-top:-14px;background:#C19A6B;border:3px solid var(--ink);border-radius:8px}
 .bow{position:absolute;left:50%;top:30px;width:0;height:0}
 .bow i{position:absolute;top:-8px;width:34px;height:17px;background:var(--yellow);border:3px solid var(--ink);border-radius:999px}
 .bow i:nth-child(1){left:-36px;transform:rotate(-22deg)}.bow i:nth-child(2){left:2px;transform:rotate(22deg)}
@@ -107,8 +107,18 @@ function bassRow(col){const h=STY[sty].hop;let x=Math.floor(col/h)*h;if((x/h)%2)
   for(let xx=x;xx<Math.min(N,x+h);xx++)for(let y=N-1;y>=0;y--)if(grid[y*N+xx]){t.push(y);break;}
   return t.length?t.reduce((a,b)=>a+b)/t.length:null;}
 function dominantRoot(){const c=new Array(16).fill(0);for(const v of grid)if(v)c[v]++;let m=0,b=0;for(let i=1;i<16;i++)if(c[i]>0&&c[i]>=b){m=i;b=c[i];}return m?(m-1)%12:0;}
+function dominantColor(a,b){const c=new Array(16).fill(0);for(let y=0;y<N;y++)for(let x=a;x<b;x++){const v=grid[y*N+x];if(v)c[v]++;}let m=0,bb=0;for(let i=1;i<16;i++)if(c[i]>0&&c[i]>=bb){m=i;bb=c[i];}return m;}
+// 4小節(16列ずつ)ごとの根音のずらし幅。アプリ(Swift)の barShifts と同じ
+function barShifts(){const sc=STY[sty].sc,n=sc.length,deg=m=>sc[(m-1)%n],g=dominantColor(0,N);if(!g)return[0,0,0,0];const bw=N/4;
+  return[0,1,2,3].map(k=>{const m=dominantColor(k*bw,(k+1)*bw);return m?deg(m)-deg(g):0;});}
 function midiOf(row,st,root){const s=st.sc,n=s.length*3,i=Math.min(n-1,Math.max(0,Math.floor((N-1-row)/N*n)));return 48+root+12*Math.floor(i/s.length)+s[i%s.length]+st.oct;}
-function groupNotes(x,h,root){
+function columnTops(){const t=[];for(let x=0;x<N;x++){let r=-1;for(let y=0;y<N;y++)if(grid[y*N+x]){r=y;break;}t.push(r);}return t;}
+// 絵全体でたくさん使われた色の上位4色(色ごとのパートの順位。同数ならばんごうが小さい方が上)
+function colorRank(){const c=new Array(16).fill(0);for(const v of grid)if(v)c[v]++;
+  return c.map((n,i)=>[n,i]).filter(a=>a[0]>0).sort((a,b)=>b[0]-a[0]||a[1]-b[1]).slice(0,4).map(a=>a[1]);}
+// 脇役パート(アルペジオ・きらきら)の楽器。アプリ(Swift)の companion と同じ
+const COMP={epiano:'musicbox',guitar:'chip',koto:'musicbox',chip:'chip',pad:'musicbox',musicbox:'epiano'};
+function groupNotes(x,h,root,ct,rank){
   const st=STY[sty],tops=[],bots=[],topC={},cnt={},sum={};let ink=0;
   for(let xx=x;xx<Math.min(N,x+h);xx++){let top=-1,bot=-1;
     for(let y=0;y<N;y++){const v=grid[y*N+xx];if(v){if(top<0){top=y;topC[v]=(topC[v]||0)+1;}bot=y;ink++;cnt[v]=(cnt[v]||0)+1;sum[v]=(sum[v]||0)+y;}}
@@ -116,10 +126,21 @@ function groupNotes(x,h,root){
   if(!tops.length)return[];
   const avg=a=>a.reduce((p,q)=>p+q,0)/a.length,vol=.5+.5*Math.min(1,ink/(h*24)),out=[];
   const lc=+Object.keys(topC).sort((a,b)=>topC[b]-topC[a]||a-b)[0];
-  out.push({midi:Math.max(36,midiOf(avg(tops),st,root)),br:BR[timbre(lc)[0]],g:vol});
-  Object.keys(cnt).sort((a,b)=>cnt[b]-cnt[a]||a-b).slice(0,2).forEach(v=>{const t=timbre(+v);
-    out.push({midi:Math.max(36,midiOf(sum[v]/cnt[v],st,root)+t[1]),br:BR[t[0]],g:.45*vol});});
-  if((x/h)%2===0)out.push({midi:Math.max(36,midiOf(avg(bots),st,root)-12),br:.4,g:.65*vol});
+  const nt=(midi,br,g,len=1,delay=0,alt=false)=>({midi,br,g,len,delay,alt});
+  // 輪郭の上下の変化量：大きいほどメロディにアクセント、大きく跳ぶときは装飾音
+  let jump=0;for(let xx=x;xx<Math.min(N,x+h);xx++)if(xx>0&&ct[xx]>=0&&ct[xx-1]>=0)jump=Math.max(jump,Math.abs(ct[xx]-ct[xx-1]));
+  let leadDelay=0;
+  if(x>0&&ct[x]>=0&&ct[x-1]>=0&&Math.abs(ct[x]-ct[x-1])>=8){
+    const rps=N/(st.sc.length*3),gr=avg(tops)+(ct[x-1]<ct[x]?-rps:rps);
+    out.push(nt(Math.max(36,midiOf(gr,st,root)),BR[timbre(lc)[0]],.6*vol,.3));leadDelay=.5;}
+  out.push(nt(Math.max(36,midiOf(avg(tops),st,root)),BR[timbre(lc)[0]],vol*(jump>=4?1.25:1),1,leadDelay));
+  // 色ごとのパート
+  const gi=Math.floor(x/h);
+  rank.forEach((v,i)=>{const c=cnt[v];if(!c)return;const t=timbre(v),m=Math.max(36,midiOf(sum[v]/c,st,root)+t[1]),b=BR[t[0]];
+    if(i<2)out.push(nt(m,b,.45*vol));
+    else if(i===2){out.push(nt(m,b,.3*vol,.45,0,true));out.push(nt(m+12,b,.25*vol,.45,Math.max(1,Math.floor(h/2)),true));}
+    else if(gi%2===1)out.push(nt(m+12,b,.3*vol,.35,0,true));});
+  if(gi%2===0)out.push(nt(Math.max(36,midiOf(avg(bots),st,root)-12),.4,.65*vol));
   return out;
 }
 const TP=2*Math.PI,saw=p=>2*(p-Math.floor(p))-1,tri=p=>4*Math.abs(p-Math.floor(p)-.5)-1;
@@ -159,14 +180,29 @@ function renderSong(){
     else if(k===1)mix(start,.14*SR|0,t=>Math.exp(-t*24)*(.22*(Math.random()*2-1)+.18*Math.sin(TP*190*t)));
     else if(k===2)mix(start,.05*SR|0,t=>{const nz=Math.random()*2-1,r=.09*Math.exp(-t*80)*(nz-prev);prev=nz;return r;});
     else mix(start,.45*SR|0,t=>{ph+=TP*(62+60*Math.exp(-t*14))/SR;return .6*Math.exp(-t*7)*Math.sin(ph);});};
-  const len=Math.floor(noteLen*SR),root=dominantRoot();
+  const root=dominantRoot(),shifts=barShifts(),ct=columnTops(),rank=colorRank(),alt=COMP[st.inst];
   for(let x=0;x<N;x+=st.hop){
     const start=Math.floor(x*step*SR);
-    groupNotes(x,st.hop,root).forEach(nt=>[0,...st.ex].forEach((off,k)=>{
-      const f=440*Math.pow(2,(nt.midi+off-69)/12),v=voice(st.inst,f,nt.br,noteLen),g=nt.g*(k===0?1:.6);
-      mix(start,len,t=>g*v(t)*Math.min(1,(noteLen-t)/.02));}));
+    groupNotes(x,st.hop,root+shifts[Math.floor(x/(N/4))],ct,rank).forEach(nt=>{
+      const nl=noteLen*nt.len,len=Math.floor(nl*SR),s0=start+Math.floor(nt.delay*step*SR),ins=nt.alt?alt:st.inst;
+      (nt.alt?[0]:[0,...st.ex]).forEach((off,k)=>{
+        const f=440*Math.pow(2,(nt.midi+off-69)/12),v=voice(ins,f,nt.br,nl),g=nt.g*(k===0?1:.6);
+        mix(s0,len,t=>g*v(t)*Math.min(1,(nl-t)/.02));});});
   }
-  for(let x=0;x<N;x++)hits(st.dr,x%16).forEach(h=>drum(h,Math.floor(x*step*SR)));
+  // ドラム：曲調ごとの基本パターン＋絵の形によるアクセント(アプリ(Swift)と同じ)
+  const bw=N/4,barD=[0,1,2,3].map(b=>{let c=0;for(let y=0;y<N;y++)for(let xx=b*bw;xx<(b+1)*bw;xx++)if(grid[y*N+xx])c++;return c/(bw*N);});
+  let lastKick=-99;   // 追加のキックは3ステップ以上あける(ごちゃつき防止)
+  for(let x=0;x<N;x++){
+    const bar=Math.floor(x/bw),p=x%16;let hs=hits(st.dr,p);
+    if(st.dr!==0){
+      if(barD[bar]<.03)hs=hs.filter(k=>k!==2);
+      const jp=(x>0&&ct[x]>=0&&ct[x-1]>=0)?Math.abs(ct[x]-ct[x-1]):0;
+      if(jp>=4&&st.dr!==3&&x%2===1&&!hs.includes(2))hs.push(2);
+      const kick=st.dr===3?3:0;if(jp>=9&&x-lastKick>=3&&!hs.includes(kick)){hs.push(kick);lastKick=x;}
+      if(bar===3&&barD[bar]>.15&&p>=12){const fl=st.dr===3?3:1;if((st.dr!==3||p%2===0)&&!hs.includes(fl))hs.push(fl);}
+    }
+    hs.forEach(k=>drum(k,Math.floor(x*step*SR)));
+  }
   if(st.ec>0){const d=Math.floor(st.ec*step*SR);for(let i=d;i<frames;i++)s[i]+=st.ef*s[i-d];}
   let e=0;for(let i=0;i<frames;i++)e+=s[i]*s[i];
   const gain=Math.min(5,.17/Math.max(Math.sqrt(e/frames),1e-6));
