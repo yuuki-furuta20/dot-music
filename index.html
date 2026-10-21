@@ -69,6 +69,20 @@ const STY=[
 const BR={sine:.3,triangle:.5,square:.7,sawtooth:1};
 const BPM=[90,120,160];
 let grid=new Uint8Array(N*N),sty=0,tp=1,playing=false,playCol=-1;
+// 読む向き：0=左→右(いままで) 1=下→上 2=右→左 3=上→下。ループの1周ごとに順番にかわる(アプリと同じ)
+let dir=0;const pgrids=[null,null,null,null];
+// 絵を回して「時間=列、音の高さ=行」の形にそろえる(アプリ(Swift)の orientedGrid と同じ)
+function orient(g,d){
+  if(d===0)return g;
+  const o=new Uint8Array(N*N);
+  for(let y=0;y<N;y++)for(let x=0;x<N;x++){const v=g[y*N+x];if(!v)continue;
+    let tx,ty;
+    if(d===1){tx=N-1-y;ty=N-1-x;}        // 下が先。左が低い音、右が高い音
+    else if(d===2){tx=N-1-x;ty=y;}       // 右が先
+    else{tx=y;ty=N-1-x;}                 // 上が先。左が低い音、右が高い音
+    o[ty*N+tx]=v;}
+  return o;
+}
 const ctx=$('c').getContext('2d');
 
 function decode(s){
@@ -82,15 +96,24 @@ function decode(s){
 function render(){
   const S=10;ctx.fillStyle=getComputedStyle(document.documentElement).getPropertyValue('--cv').trim();ctx.fillRect(0,0,640,640);
   for(let y=0;y<N;y++)for(let x=0;x<N;x++){const v=grid[y*N+x];if(v&&COL[v]){ctx.fillStyle=COL[v];ctx.fillRect(x*S,y*S,S+.4,S+.4);}}
-  if(playCol>=0){const g=ctx.createLinearGradient(0,0,0,640);g.addColorStop(0,'rgba(255,111,165,.45)');g.addColorStop(1,'rgba(106,141,255,.45)');ctx.fillStyle=g;ctx.fillRect(playCol*S,0,S,640);
+  if(playCol>=0){
+    const PG=pgrids[dir]||grid,horiz=(dir===1||dir===3);
+    // 回した絵の「時間u・音の高さv(マス単位)」を、画面の座標にもどす(アプリの displayPoint と同じ)
+    const dpt=(u,v)=>dir===0?[u*S,v*S]:dir===2?[(N-u)*S,v*S]:dir===1?[(N-v)*S,(N-u)*S]:[(N-v)*S,u*S];
+    const g=horiz?ctx.createLinearGradient(0,0,640,0):ctx.createLinearGradient(0,0,0,640);
+    g.addColorStop(0,'rgba(255,111,165,.45)');g.addColorStop(1,'rgba(106,141,255,.45)');ctx.fillStyle=g;
+    if(dir===0)ctx.fillRect(playCol*S,0,S,640);
+    else if(dir===2)ctx.fillRect((N-playCol-1)*S,0,S,640);
+    else if(dir===1)ctx.fillRect(0,(N-playCol-1)*S,640,S);
+    else ctx.fillRect(0,playCol*S,640,S);
     {const hb=STY[sty].hop;ctx.beginPath();let f=true;
-      for(let c=0;c<=playCol;c+=hb*2){const r=bassRow(c);if(r===null)continue;const px=(c+hb/2)*S,py=(r+.5)*S;if(f){ctx.moveTo(px,py);f=false;}else ctx.lineTo(px,py);}
+      for(let c=0;c<=playCol;c+=hb*2){const r=bassRow(c,PG);if(r===null)continue;const[px,py]=dpt(c+hb/2,r+.5);if(f){ctx.moveTo(px,py);f=false;}else ctx.lineTo(px,py);}
       ctx.lineJoin=ctx.lineCap='round';ctx.strokeStyle='rgba(255,255,255,.9)';ctx.lineWidth=5;ctx.stroke();ctx.strokeStyle='#00ecd5';ctx.lineWidth=3;ctx.stroke();
-      const rb=bassRow(playCol);if(rb!==null){ctx.beginPath();ctx.arc((playCol+.5)*S,(rb+.5)*S,S*1.1,0,Math.PI*2);ctx.fillStyle='#fff';ctx.fill();ctx.lineWidth=3;ctx.strokeStyle='#00ecd5';ctx.stroke();}}
+      const rb=bassRow(playCol,PG);if(rb!==null){const[bx,by]=dpt(playCol+.5,rb+.5);ctx.beginPath();ctx.arc(bx,by,S*1.1,0,Math.PI*2);ctx.fillStyle='#fff';ctx.fill();ctx.lineWidth=3;ctx.strokeStyle='#00ecd5';ctx.stroke();}}
     const h=STY[sty].hop;ctx.beginPath();let first=true;
-    for(let c=0;c<=playCol;c+=h){const r=leadRow(c);if(r===null)continue;const px=(c+h/2)*S,py=(r+.5)*S;if(first){ctx.moveTo(px,py);first=false;}else ctx.lineTo(px,py);}
+    for(let c=0;c<=playCol;c+=h){const r=leadRow(c,PG);if(r===null)continue;const[px,py]=dpt(c+h/2,r+.5);if(first){ctx.moveTo(px,py);first=false;}else ctx.lineTo(px,py);}
     ctx.lineJoin=ctx.lineCap='round';ctx.strokeStyle='rgba(255,255,255,.9)';ctx.lineWidth=5;ctx.stroke();ctx.strokeStyle='#ff4f93';ctx.lineWidth=2.5;ctx.stroke();
-    const r=leadRow(playCol);if(r!==null){ctx.beginPath();ctx.arc((playCol+.5)*S,(r+.5)*S,S*1.3,0,Math.PI*2);ctx.fillStyle='#fff';ctx.fill();ctx.lineWidth=3;ctx.strokeStyle='#ff4f93';ctx.stroke();}}
+    const r=leadRow(playCol,PG);if(r!==null){const[lx,ly]=dpt(playCol+.5,r+.5);ctx.beginPath();ctx.arc(lx,ly,S*1.3,0,Math.PI*2);ctx.fillStyle='#fff';ctx.fill();ctx.lineWidth=3;ctx.strokeStyle='#ff4f93';ctx.stroke();}}
 }
 function hsl(hex){const r=parseInt(hex.slice(1,3),16)/255,g=parseInt(hex.slice(3,5),16)/255,b=parseInt(hex.slice(5,7),16)/255,mx=Math.max(r,g,b),mn=Math.min(r,g,b),l=(mx+mn)/2;let h=0;
   if(mx!==mn){const d=mx-mn;h=mx===r?(g-b)/d+(g<b?6:0):mx===g?(b-r)/d+2:(r-g)/d+4;h*=60;}return[h,l];}
@@ -98,11 +121,11 @@ function timbre(v){if(v<=12)return TIMBRE[v];const[h,l]=hsl(COL[v]);return[['sin
 // ---- 絵 → 音 ----
 // リード＝絵の輪郭（各列でいちばん上のドット）、ハーモニー＝使った色、ベース＝絵の底、
 // 音量＝絵の濃さ、空白の列＝休符、キー＝いちばん多く使った色
-function leadRow(col){const h=STY[sty].hop,x=Math.floor(col/h)*h,t=[];
-  for(let xx=x;xx<Math.min(N,x+h);xx++)for(let y=0;y<N;y++)if(grid[y*N+xx]){t.push(y);break;}
+function leadRow(col,G=grid){const h=STY[sty].hop,x=Math.floor(col/h)*h,t=[];
+  for(let xx=x;xx<Math.min(N,x+h);xx++)for(let y=0;y<N;y++)if(G[y*N+xx]){t.push(y);break;}
   return t.length?t.reduce((a,b)=>a+b)/t.length:null;}
-function bassRow(col){const h=STY[sty].hop;let x=Math.floor(col/h)*h;if((x/h)%2)x-=h;const t=[];
-  for(let xx=x;xx<Math.min(N,x+h);xx++)for(let y=N-1;y>=0;y--)if(grid[y*N+xx]){t.push(y);break;}
+function bassRow(col,G=grid){const h=STY[sty].hop;let x=Math.floor(col/h)*h;if((x/h)%2)x-=h;const t=[];
+  for(let xx=x;xx<Math.min(N,x+h);xx++)for(let y=N-1;y>=0;y--)if(G[y*N+xx]){t.push(y);break;}
   return t.length?t.reduce((a,b)=>a+b)/t.length:null;}
 function dominantRoot(){const c=new Array(16).fill(0);for(const v of grid)if(v)c[v]++;let m=0,b=0;for(let i=1;i<16;i++)if(c[i]>0&&c[i]>=b){m=i;b=c[i];}return m?(m-1)%12:0;}
 function dominantColor(a,b){const c=new Array(16).fill(0);for(let y=0;y<N;y++)for(let x=a;x<b;x++){const v=grid[y*N+x];if(v)c[v]++;}let m=0,bb=0;for(let i=1;i<16;i++)if(c[i]>0&&c[i]>=bb){m=i;bb=c[i];}return m;}
@@ -207,21 +230,32 @@ function renderSong(){
   for(let i=0;i<frames;i++)s[i]=Math.tanh(s[i]*gain);
   return{s,total,step};
 }
-let ac=null,song=null,wbuf=null,pbuf=null,cur=null,t0=0,loopOn=true;
+let ac=null,parts=[],segs=[],nextT=0,nextI=0,Lsec=0,loopOn=true,playGen=0,pump=null;
 const mk=a=>{const b=ac.createBuffer(1,a.length,SR);b.copyToChannel(a,0);return b;};
-// いまの位置(offsetSec)から流す。fade=true のときは前の音とクロスフェード
-function startSrc(offsetSec,fade){
-  const g=ac.createGain(),src=ac.createBufferSource(),now=ac.currentTime;
-  src.buffer=loopOn?wbuf:pbuf;src.loop=loopOn;src.connect(g);g.connect(ac.destination);
-  if(fade){g.gain.setValueAtTime(0,now);g.gain.linearRampToValueAtTime(1,now+.06);}
-  src.start(now+.02,offsetSec);t0=now+.02-offsetSec;
-  const old=cur;cur={src,g};
-  if(old){old.g.gain.cancelScheduledValues(now);old.g.gain.setValueAtTime(old.g.gain.value,now);old.g.gain.linearRampToValueAtTime(0,now+.06);old.src.stop(now+.08);}
+const LOOK=2;   // 次のパートを、始まる2秒前までに予約する(タブが裏にまわっても途切れにくくする)
+// d番目の向きのパートを時刻tから流す。余韻はそのまま次のパートの頭に重なる(つなぎ目なし)
+function schedule(d,t){
+  const g=ac.createGain(),src=ac.createBufferSource();
+  src.buffer=parts[d].buf;src.connect(g);g.connect(ac.destination);src.start(t);
+  segs.push({t,d,src,g});if(segs.length>8)segs.shift();
+}
+// 向きごとの曲を作る(絵を回してから、いつもの renderSong で作る)
+function buildPart(d){
+  const g0=grid;pgrids[d]=orient(g0,d);grid=pgrids[d];
+  let r;try{r=renderSong();}finally{grid=g0;}
+  r.buf=mk(r.s);parts[d]=r;
+}
+// まだ始まっていない予約を取り消す(ループをオフにしたとき)
+function cancelFuture(){
+  const now=ac.currentTime;
+  while(segs.length>1&&segs[segs.length-1].t>now+.03){
+    const s=segs.pop();try{s.src.stop();}catch(e){}nextT=s.t;nextI--;}
 }
 function stopAll(){
-  playing=false;playCol=-1;
-  if(cur&&ac){const n=ac.currentTime;cur.g.gain.cancelScheduledValues(n);cur.g.gain.setValueAtTime(cur.g.gain.value,n);cur.g.gain.linearRampToValueAtTime(0,n+.1);cur.src.stop(n+.12);}
-  cur=null;render();$('play').textContent='▶ きょくをきく';
+  playing=false;playCol=-1;playGen++;
+  if(pump){clearInterval(pump);pump=null;}
+  if(ac){const n=ac.currentTime;segs.forEach(s=>{try{s.g.gain.cancelScheduledValues(n);s.g.gain.setValueAtTime(s.g.gain.value,n);s.g.gain.linearRampToValueAtTime(0,n+.1);s.src.stop(n+.12);}catch(e){}});}
+  segs=[];dir=0;render();$('play').textContent='▶ きょくをきく';
 }
 function play(){
   if(playing){stopAll();return;}
@@ -231,22 +265,39 @@ function play(){
 }
 function go(){
   if(!playing)return;
-  song=renderSong();
-  const L=Math.floor(N*song.step*SR),w=song.s.slice(0,L);
-  for(let i=L;i<song.s.length;i++)if(i-L<L)w[i-L]+=song.s[i];   // 余韻を頭に重ねて、つなぎ目のないループにする
-  pbuf=mk(song.s);wbuf=mk(w);song.Lsec=L/SR;
-  startSrc(0,false);
+  const my=++playGen;
+  parts=[];segs=[];dir=0;
+  buildPart(0);                                   // まず「左→右」だけ作って、すぐ鳴らしはじめる
+  Lsec=Math.floor(N*parts[0].step*SR)/SR;
+  const t0=ac.currentTime+.05;
+  schedule(0,t0);nextT=t0+Lsec;nextI=1;
   $('play').textContent='■ とめる';
+  // 残りの向き(下→上、右→左、上→下)は、鳴らしながら順に作る
+  [1,2,3].forEach((d,i)=>setTimeout(()=>{if(playing&&my===playGen)buildPart(d);},400+i*700));
+  // ループ中は、1周ごとに 左→右 → 下→上 → 右→左 → 上→下 と向きをかえて、つぎのパートを予約していく
+  pump=setInterval(()=>{
+    if(!playing||my!==playGen)return;
+    const now=ac.currentTime;
+    if(loopOn&&now>=nextT-LOOK){
+      if(nextT<now+.03)nextT=now+.05;
+      let d=0;for(let k=0;k<4;k++){const c=(nextI+k)%4;if(parts[c]){d=c;break;}}   // まだ作っていない向きは、あるものでつなぐ
+      schedule(d,nextT);nextT+=Lsec;nextI++;
+    }
+  },250);
   (function loop(){
-    if(!playing)return;
-    const e=ac.currentTime-t0;
-    if(loopOn){playCol=Math.min(N-1,Math.floor((e%song.Lsec)/song.step));}
-    else{if(e>song.total){stopAll();return;}const c=Math.floor(e/song.step);playCol=c>=0&&c<N?c:-1;}
+    if(!playing||my!==playGen)return;
+    const now=ac.currentTime,last=segs[segs.length-1];
+    if(!loopOn&&now>last.t+parts[last.d].total){stopAll();return;}
+    let cur=segs[0];for(const s of segs)if(s.t<=now)cur=s;
+    dir=cur.d;const e=now-cur.t;
+    if(e<0)playCol=0;
+    else if(loopOn||e<Lsec)playCol=Math.min(N-1,Math.floor(e/parts[cur.d].step));
+    else playCol=-1;
     render();requestAnimationFrame(loop);})();
 }
 $('loop').onclick=()=>{
   loopOn=!loopOn;$('loop').classList.toggle('on',loopOn);
-  if(playing&&cur&&song){const pos=((ac.currentTime-t0)%song.Lsec+song.Lsec)%song.Lsec;startSrc(pos,true);}
+  if(playing&&ac&&segs.length&&!loopOn)cancelFuture();
 };
 $('play').onclick=play;
 let ok=false;
