@@ -60,10 +60,10 @@ const COL=[null,'#ff3b30','#ffbfcc','#ffff00','#80ccff','#007aff','#34c759','#cc
 const TIMBRE=[null,['square',0],['triangle',12],['triangle',12],['sine',12],['square',0],['sine',0],['sawtooth',0],['triangle',0],['sine',0],['triangle',-12],['sine',-12],['sawtooth',-12]];
 const STY=[
  {n:'🎹 ポップ',sc:[0,2,4,5,7,9,11],mul:1,inst:'epiano',oct:0,hop:2,len:3,ex:[],dr:1,ec:0,ef:0},
- {n:'🎸 ロック',sc:[0,3,5,7,10],mul:1.1,inst:'guitar',oct:-12,hop:2,len:2.5,ex:[7],dr:2,ec:3,ef:.25},
- {n:'🎍 和風',sc:[0,1,5,7,8],mul:.8,inst:'koto',oct:0,hop:2,len:8,ex:[],dr:3,ec:4,ef:.35},
+ {n:'🎸 ロック',sc:[0,3,5,6,7,10],mul:1.15,inst:'guitar',oct:-12,hop:2,len:2,ex:[7,12],dr:2,ec:0,ef:0,sm:.004},
+ {n:'🎍 和風',sc:[0,2,3,7,8],mul:.8,inst:'koto',oct:0,hop:2,len:8,ex:[12],dr:3,ec:4,ef:.35,pc:0,sm:.03},
  {n:'👾 8bit',sc:[0,2,4,7,9],mul:1.3,inst:'chip',oct:12,hop:1,len:1.5,ex:[],dr:4,ec:0,ef:0},
- {n:'🌺 ハワイアン',sc:[0,2,4,5,7,9,11],mul:.95,inst:'ukulele',oct:0,hop:2,len:4,ex:[12],dr:6,ec:3,ef:.2},
+ {n:'🌺 ハワイアン',sc:[0,2,4,5,7,9,11],mul:.88,inst:'ukulele',oct:0,hop:2,len:4,ex:[12],dr:6,ec:3,ef:.2,sm:.014,sw:.6},
  {n:'🎠 オルゴール',sc:[0,2,4,5,7,9,11],mul:.85,inst:'musicbox',oct:0,hop:2,len:6,ex:[],dr:0,ec:4,ef:.3,pc:0}];
 const BR={sine:.3,triangle:.5,square:.7,sawtooth:1};
 const BPM=[90,120,160];
@@ -105,7 +105,7 @@ function percColors(){
   if(!other)return[];
   return Object.keys(PC).map(Number).filter(v=>c[v]>=PMIN);}
 // 脇役パート(アルペジオ・きらきら)の楽器。アプリ(Swift)の companion と同じ
-const COMP={epiano:'musicbox',guitar:'chip',koto:'musicbox',chip:'chip',ukulele:'musicbox',musicbox:'epiano'};
+const COMP={epiano:'musicbox',guitar:'guitar',koto:'bell',chip:'chip',ukulele:'steel',musicbox:'epiano',bell:'bell',steel:'steel'};
 function groupNotes(x,h,root,ct,rank){
   const st=STY[sty],tops=[],bots=[],topC={},cnt={},sum={};let ink=0;
   for(let xx=x;xx<Math.min(N,x+h);xx++){let top=-1,bot=-1;
@@ -137,23 +137,36 @@ function voice(inst,f,br,dur){
   if(inst==='epiano')return t=>{ // エレピ（FM合成）
     const idx=(1+2.5*br)*Math.exp(-5*t/dur),e=Math.min(t/.004,1)*Math.exp(-3.2*t/dur);
     return .16*e*(Math.sin(TP*f*t+idx*Math.sin(TP*f*t))+.25*Math.sin(TP*f*14*t)*Math.exp(-30*t));};
-  if(inst==='guitar'){ // 試作G2：弦＋強い歪み（長め）
-    const n1=Math.max(2,Math.round(SR/f)),n2=Math.max(2,Math.round(SR/(f*1.004))),b1=new Float32Array(n1),b2=new Float32Array(n2);let i1=0,i2=0,lp=0,cab=0;
-    const d=Math.min(.9995,0.9985+.002*br),c=1-Math.exp(-TP*3200/SR);
+  if(inst==='guitar'){ // エレキギター：ひずませた弦＋ピックの音。短く切る(パームミュートのザクザク)
+    const n1=Math.max(2,Math.round(SR/f)),n2=Math.max(2,Math.round(SR/(f*1.004))),b1=new Float32Array(n1),b2=new Float32Array(n2);let i1=0,i2=0,lp=0,cab=0,cab2=0;
+    const d=Math.min(.9995,0.9985+.002*br),c=1-Math.exp(-TP*2600/SR);
     for(let k=0;k<n1;k++){lp+=.9*((Math.random()*2-1)-lp);b1[k]=lp*1.5;}
     for(let k=0;k<n2;k++){lp+=.9*((Math.random()*2-1)-lp);b2[k]=lp*1.5;}
     return t=>{const y1=b1[i1];b1[i1]=d*.5*(y1+b1[(i1+1)%n1]);i1=(i1+1)%n1;
       const y2=b2[i2];b2[i2]=d*.5*(y2+b2[(i2+1)%n2]);i2=(i2+1)%n2;
-      const y=Math.tanh(9*.5*(y1+y2));cab+=c*(y-cab);
-      return .26*Math.min(t/.002,1)*Math.exp(-1.8*t/dur)*cab;};}
-  if(inst==='koto'){const n=Math.max(2,Math.round(SR/f)),b=new Float32Array(n);let i=0;const d=.994+.005*br; // 琴（弦のシミュレーション）
-    for(let k=0;k<n;k++)b[k]=Math.random()*2-1;
-    return()=>{const y=b[i];b[i]=d*.5*(y+b[(i+1)%n]);i=(i+1)%n;return .22*y;};}
+      const raw=.5*(y1+y2),y=Math.tanh(16*raw+2.5*raw*raw);cab+=c*(y-cab);cab2+=c*(cab-cab2);
+      const pick=t<.006?(Math.random()*2-1)*(1-t/.006)*.25:0;
+      return .24*Math.min(t/.001,1)*Math.exp(-3.2*t/dur)*(cab2+pick);};}
+  if(inst==='koto'){ // 琴：爪ではじく位置の芯と「コッ」という爪の音、のびやかな余韻
+    const n=Math.max(2,Math.round(SR/f)),raw=new Float32Array(n),b=new Float32Array(n),pp=Math.max(1,Math.floor(n/6));let i=0;const d=.995+.0045*br;
+    for(let k=0;k<n;k++)raw[k]=Math.random()*2-1;
+    for(let k=0;k<n;k++)b[k]=raw[k]-.6*raw[(k+pp)%n];
+    return t=>{const y=b[i];b[i]=d*.5*(y+b[(i+1)%n]);i=(i+1)%n;
+      const click=t<.004?(Math.random()*2-1)*(1-t/.004)*.35:0;return .22*(y+click);};}
   if(inst==='chip'){const duty=.5-.375*br;return t=>{ // ファミコン（パルス波）
     const p=f*t,ph=p-Math.floor(p),e=Math.floor(Math.exp(-4*t/dur)*6)/6;return .1*e*(ph<duty?1:-1);};}
-  if(inst==='ukulele'){const n=Math.max(2,Math.round(SR/f)),b=new Float32Array(n);let i=0,lp=0;const d=.988+.006*br; // ウクレレ（はじいた弦。やわらかい音・短めの余韻）
-    for(let k=0;k<n;k++){lp+=.6*((Math.random()*2-1)-lp);b[k]=1.6*lp;}
-    return()=>{const y=b[i];b[i]=d*.5*(y+b[(i+1)%n]);i=(i+1)%n;return .24*y;};}
+  if(inst==='ukulele'){ // ウクレレ：ナイロン弦。2本をわずかにずらして重ね、ポロンと明るく軽い音
+    const n1=Math.max(2,Math.round(SR/f)),n2=Math.max(2,Math.round(SR/(f*1.003))),b1=new Float32Array(n1),b2=new Float32Array(n2);let i1=0,i2=0,lp=0;const d=.983+.007*br;
+    for(let k=0;k<n1;k++){lp+=.7*((Math.random()*2-1)-lp);b1[k]=1.6*lp;}
+    for(let k=0;k<n2;k++){lp+=.7*((Math.random()*2-1)-lp);b2[k]=1.6*lp;}
+    return()=>{const y1=b1[i1];b1[i1]=d*.5*(y1+b1[(i1+1)%n1]);i1=(i1+1)%n1;
+      const y2=b2[i2];b2[i2]=d*.5*(y2+b2[(i2+1)%n2]);i2=(i2+1)%n2;return .13*(y1+y2);};}
+  if(inst==='bell'){const R2=[1,2.32,4.25,6.63],A2=[1,.45,.25,.12],D2=[2.4,3.6,5.5,9]; // 風鈴
+    return t=>{let v=0;for(let k=0;k<4;k++){if(f*R2[k]>10000)continue;v+=A2[k]*Math.exp(-D2[k]*t/dur)*Math.sin(TP*f*R2[k]*t);}
+      return .13*Math.min(t/.001,1)*(1+.12*Math.sin(TP*6.5*t))*v;};}
+  if(inst==='steel'){let ph=0; // スチールギター（しゃくり上げ＋ビブラート）
+    return t=>{const vib=1+.004*Math.min(t/.25,1)*Math.sin(TP*5.5*t),sl=1-.06*Math.exp(-t*22);ph+=TP*f*vib*sl/SR;
+      const e=Math.min(t/.008,1)*Math.exp(-2.4*t/dur);return .15*e*(Math.sin(ph)+.35*Math.sin(2*ph)+.12*Math.sin(3*ph));};}
   const R=[1,2.76,5.4,8.93],A=[1,.35,.18,.08],D=[3,7,13,24]; // オルゴール（金属の櫛の響き）
   return t=>{let v=0;for(let k=0;k<4;k++){if(f*R[k]>9000)continue;v+=A[k]*(k?.5+br:1)*Math.exp(-D[k]*t/dur)*Math.sin(TP*f*R[k]*t);}
     return .14*Math.min(t/.002,1)*v;};
@@ -161,7 +174,7 @@ function voice(inst,f,br,dur){
 function hits(k,p){const r=[];
   if(k===1){if(p===0||p===8)r.push(0);if(p===4||p===12)r.push(1);if(p%2===0)r.push(2);}
   else if(k===2){if(p===0||p===8||p===10)r.push(0);if(p===4||p===12)r.push(1);if(p%2===0)r.push(2);}
-  else if(k===3){if(p===0||p===8)r.push(3);}
+  else if(k===3){if(p===0)r.push(3);if(p===6||p===14)r.push(4);}   // 和風：太鼓は頭だけ＋拍子木
   else if(k===4){if(p===4||p===12)r.push(1);if(p%4===2)r.push(2);}
   else if(k===5){if(p%4===0)r.push(0);if(p===4||p===12)r.push(1);if(p%4===2)r.push(2);}
   else if(k===6){if(p===0||p===8)r.push(0);if(p%4===2)r.push(2);}   // ハワイアン：ゆれるハットだけ。スネアなし
@@ -173,6 +186,7 @@ function renderSong(refGain){
     if(k===0)mix(start,.2*SR|0,t=>{ph+=TP*(50+110*Math.exp(-t*28))/SR;return A*.55*Math.exp(-t*16)*Math.sin(ph);});
     else if(k===1)mix(start,.14*SR|0,t=>A*Math.exp(-t*24)*(.22*(Math.random()*2-1)+.18*Math.sin(TP*190*t)));
     else if(k===2)mix(start,.05*SR|0,t=>{const nz=Math.random()*2-1,r=A*.09*Math.exp(-t*80)*(nz-prev);prev=nz;return r;});
+    else if(k===4)mix(start,.08*SR|0,t=>A*.26*Math.exp(-t*60)*(Math.sin(TP*1320*t)+.5*Math.sin(TP*1980*t)));   // 拍子木
     else mix(start,.45*SR|0,t=>{ph+=TP*(62+60*Math.exp(-t*14))/SR;return A*.6*Math.exp(-t*7)*Math.sin(ph);});};
   const perc=(k,start,A)=>{let prev=0,lp=0;
     if(k===0)mix(start,.22*SR|0,t=>{const nz=Math.random()*2-1,r=A*(.13*Math.exp(-t*20)*(nz-prev)+.025*(Math.sin(TP*6200*t)+Math.sin(TP*8400*t))*Math.exp(-t*38));prev=nz;return r;});   // タンバリン
@@ -182,12 +196,12 @@ function renderSong(refGain){
     else mix(start,.3*SR|0,t=>A*.15*Math.exp(-t*13)*(tri(540*t)+tri(800*t)));};   // カウベル
   const root=dominantRoot(),shifts=barShifts(),ct=columnTops(),pcs=percColors(),rank=colorRank(pcs),alt=COMP[st.inst];
   for(let x=0;x<N;x+=st.hop){
-    const start=Math.floor(x*step*SR);
+    const sw=(st.sw&&Math.floor(x/st.hop)%2===1)?st.sw:0,start=Math.floor((x+sw)*step*SR);
     groupNotes(x,st.hop,root+shifts[Math.floor(x/(N/4))],ct,rank).forEach(nt=>{
       const nl=noteLen*nt.len,len=Math.floor(nl*SR),s0=start+Math.floor(nt.delay*step*SR),ins=nt.alt?alt:st.inst;
       (nt.alt?[0]:[0,...st.ex]).forEach((off,k)=>{
         const f=440*Math.pow(2,(nt.midi+off-69)/12),v=voice(ins,f,nt.br,nl),g=nt.g*(k===0?1:.6);
-        mix(s0,len,t=>g*v(t)*Math.min(1,(nl-t)/.02));});});
+        mix(s0+Math.floor(k*(st.sm||0)*SR),len,t=>g*v(t)*Math.min(1,(nl-t)/.02));});});
   }
   // ドラム：曲調ごとの基本パターン＋絵の形によるアクセント(アプリ(Swift)と同じ)
   const bw=N/4,barD=[0,1,2,3].map(b=>{let c=0;for(let y=0;y<N;y++)for(let xx=b*bw;xx<(b+1)*bw;xx++)if(grid[y*N+xx])c++;return c/(bw*N);});
@@ -365,6 +379,10 @@ $('loop').onclick=()=>{
   if(playing&&ac&&segs.length&&!loopOn)cancelFuture();
 };
 $('play').onclick=play;
+// ホーム画面にもどす・ほかのアプリやタブにうつる・画面ロックなど、ページが見えなくなったら音をとめる
+function hushWhenHidden(){if(playing)stopAll();if(ac&&ac.state==='running')setTimeout(()=>{if(!playing)ac.suspend();},400);}
+document.addEventListener('visibilitychange',()=>{if(document.hidden)hushWhenHidden();});
+window.addEventListener('pagehide',hushWhenHidden);
 let ok=false;
 try{const h=location.hash.match(/d=([\w-]+)/);if(h){decode(h[1]);ok=grid.some(v=>v);}}catch(e){}
 if(ok){render();$('info').textContent='きょくちょう：'+STY[sty].n;}
