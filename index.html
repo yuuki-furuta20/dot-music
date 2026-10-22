@@ -40,6 +40,14 @@ button:active{transform:translateY(4px);box-shadow:0 1px 0 var(--ink)}
 .ic{width:58px!important;padding:0!important;background:#fff!important;font-size:1.3rem!important;letter-spacing:0!important;opacity:.7}
 .ic.on{opacity:1;background:linear-gradient(180deg,rgba(255,255,255,.6),rgba(255,255,255,0) 55%),var(--mint)!important}
 #empty{display:none;text-align:center;line-height:1.9;padding:30px 10px;font-weight:900}
+/* 曲を作っている間のアニメーション：ボタンがシマシマに流れ、キャンディが速く回り、音符がはねる */
+@keyframes stripe{to{background-position:0 0,40px 0}}
+@keyframes hop{0%,100%{transform:translateY(0)}50%{transform:translateY(-9px)}}
+#play.busy{background-image:linear-gradient(180deg,rgba(255,255,255,.6),rgba(255,255,255,0) 55%),linear-gradient(-45deg,var(--yellow) 25%,#fff6bf 25%,#fff6bf 50%,var(--yellow) 50%,var(--yellow) 75%,#fff6bf 75%);background-size:100% 100%,40px 40px;animation:stripe .7s linear infinite}
+body.making .swirl{animation-duration:1.1s}
+#msg .n{display:inline-block;font-size:1.3rem;animation:hop .6s ease-in-out infinite}
+#msg .n:nth-child(2){animation-delay:.15s}#msg .n:nth-child(3){animation-delay:.3s}
+@media(prefers-reduced-motion:reduce){#play.busy,#msg .n,body.making .swirl{animation:none}}
 #msg{font-size:.85rem;color:var(--ink);text-shadow:0 1.5px 0 #fff;font-weight:900;text-align:center;min-height:1.2em}
 </style><script>
 // 背景を、ひらくたびにランダムで3種類からえらぶ（アプリのトップ画面と同じ：いちごミルク／ミントソーダ／レモンオレンジ）
@@ -345,12 +353,19 @@ function stopAll(){
   if(worker){worker.terminate();worker=null;}
   if(pump){clearInterval(pump);pump=null;}
   if(ac){const n=ac.currentTime;segs.forEach(s=>{try{s.g.gain.cancelScheduledValues(n);s.g.gain.setValueAtTime(s.g.gain.value,n);s.g.gain.linearRampToValueAtTime(0,n+.1);s.src.stop(n+.12);}catch(e){}});}
-  segs=[];dir=0;render();$('play').textContent='▶ きょくをきく';
+  segs=[];dir=0;render();$('play').textContent='▶ きょくをきく';making(false);
+}
+// 曲を作っている間のアニメーション(ボタン・キャンディ・音符)のオン／オフ
+function making(on){
+  $('play').classList.toggle('busy',on);document.body.classList.toggle('making',on);
+  $('msg').innerHTML=on?'<span class="n">♪</span> <span class="n">♫</span> <span class="n">♪</span>':'';
 }
 function play(){
   if(playing){stopAll();return;}
-  playing=true;$('play').textContent='♪ つくっています…';
+  playing=true;$('play').textContent='つくっています…';making(true);
   ac=ac||new (window.AudioContext||window.webkitAudioContext)();ac.resume();
+  // iPhoneは、タップのその場で一度音を出しておかないと、あとから鳴らせないことがあるため、無音をひとつ流す
+  try{const u=ac.createBufferSource();u.buffer=ac.createBuffer(1,1,22050);u.connect(ac.destination);u.start(0);}catch(e){}
   setTimeout(go,40);
 }
 function go(){
@@ -364,7 +379,7 @@ function began(my){
   Lsec=Math.floor(N*parts[0].step*SR)/SR;
   const t0=ac.currentTime+.05;
   schedule(0,t0);nextT=t0+Lsec;nextI=1;
-  $('play').textContent='■ とめる';
+  $('play').textContent='■ とめる';making(false);
   // 残りの向き(上→下、右→左、下→上)は、鳴らしながら順に作る。音量の基準は「左→右」にそろえる
   [1,2,3].forEach(d=>ask(d,my,parts[0].gain,400+(d-1)*700));
   // ループ中は、1周ごとに 左→右 → 上→下 → 右→左 → 下→上 と向きをかえて、つぎのパートを予約していく
@@ -431,4 +446,7 @@ function fit(){
   document.documentElement.style.setProperty('--f',f.toFixed(3));
 }
 fit();addEventListener('resize',fit);addEventListener('orientationchange',fit);
-</script></body></html>
+</script>
+<!-- アクセス数：GoatCounter(無料)。登録済み: yuuki-furuta20 -->
+<script data-goatcounter="https://yuuki-furuta20.goatcounter.com/count" async src="https://gc.zgo.at/count.js"></script>
+</body></html>
