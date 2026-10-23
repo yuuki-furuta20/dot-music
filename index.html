@@ -469,8 +469,39 @@ function fit(){
     rest=vh-parseFloat(cs.paddingTop)-parseFloat(cs.paddingBottom)-182-wc,
     f=Math.max(.4,Math.min(.65,rest/(1.59*190)));
   document.documentElement.style.setProperty('--f',f.toFixed(3));
+  avoid();
+}
+// 文字（「きょくちょう：…」と「-ongaku-」）にお菓子がかぶらないよう、かぶるお菓子だけ上か下へ少しずらす
+function avoid(){
+  const deco=document.querySelector('.deco');if(!deco)return;
+  const R=[];
+  for(const e of [$('info'),document.querySelector('.ongaku')]){
+    if(!e||e.offsetParent===null)continue;
+    const rg=document.createRange();rg.selectNodeContents(e);
+    const b=rg.getBoundingClientRect();if(b.width>0)R.push(b);
+  }
+  const sw=[...deco.querySelectorAll('svg')];
+  sw.forEach(x=>{x.style.marginTop='0px';});
+  const pad=8,H=window.innerHeight,top=parseFloat(getComputedStyle(deco).getPropertyValue('--DB'))||0;
+  const dbPx=(()=>{const t=document.createElement('div');t.style.cssText='position:fixed;top:0;height:var(--DB)';deco.appendChild(t);const h=t.getBoundingClientRect().height;t.remove();return h;})();
+  sw.forEach(x=>{
+    let dy=0;
+    for(const t of R){
+      const b=x.getBoundingClientRect();const bt=b.top+dy,bb=b.bottom+dy;
+      if(b.left<t.right+pad&&b.right>t.left-pad&&bt<t.bottom+pad&&bb>t.top-pad){
+        const up=bb-(t.top-pad),down=t.bottom+pad-bt;
+        dy+=((bt+bb)/2<(t.top+t.bottom)/2)?-up:down;
+      }
+    }
+    // モコモコの中・画面の外には出さない
+    const b=x.getBoundingClientRect();
+    if(b.top+dy<dbPx)dy=dbPx-b.top;
+    if(b.bottom+dy>H)dy=H-b.bottom;
+    x.style.marginTop=dy.toFixed(1)+'px';
+  });
 }
 fit();addEventListener('resize',fit);addEventListener('orientationchange',fit);
+if(document.fonts&&document.fonts.ready)document.fonts.ready.then(fit);   // 文字の幅が決まってから、もう一度
 </script>
 <!-- アクセス数：GoatCounter(無料)。登録済み: yuuki-furuta20 -->
 <script data-goatcounter="https://yuuki-furuta20.goatcounter.com/count" async src="https://gc.zgo.at/count.js"></script>
