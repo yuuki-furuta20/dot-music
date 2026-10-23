@@ -20,14 +20,15 @@ body::before{content:"";position:fixed;left:0;right:0;top:0;height:calc(var(--D)
 .swirl{position:absolute;inset:0;background:repeating-conic-gradient(from 90deg,var(--pink) 0 22.5deg,#fff 22.5deg 45deg,var(--sky) 45deg 67.5deg,#fff 67.5deg 90deg);animation:spin 14s linear infinite}
 .disc{position:absolute;left:50%;top:50%;width:calc(var(--S)*.72);height:calc(var(--S)*.72);transform:translate(-50%,-50%);background:#fff;border:calc(var(--S)*.02) solid var(--ink);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:calc(var(--S)*.27);font-weight:900;line-height:1;color:var(--ink)}
 .head::after{content:"";position:absolute;width:calc(var(--S)*.2);height:calc(var(--S)*.07);left:calc(50% - var(--S)*.375);top:calc(50% - var(--S)*.366);border-radius:50%;background:rgba(255,255,255,.6);transform:rotate(-40deg)}
-.stick{position:relative;width:calc(var(--S)*.09);height:calc(var(--S)*.5);margin-top:calc(var(--S)*-.1);background:var(--stick);border:calc(var(--S)*.025) solid var(--ink);border-radius:calc(var(--S)*.05)}
-.bow{position:absolute;left:50%;top:calc(var(--S)*.11);width:0;height:0}
-.bow i{position:absolute;top:calc(var(--S)*-.05);width:calc(var(--S)*.2);height:calc(var(--S)*.1);background:var(--yellow);border:calc(var(--S)*.02) solid var(--ink);border-radius:999px}
-.bow i:nth-child(1){left:calc(var(--S)*-.2);transform:rotate(-22deg)}.bow i:nth-child(2){left:0;transform:rotate(22deg)}
-.bow b{position:absolute;left:calc(var(--S)*-.045);top:calc(var(--S)*-.045);width:calc(var(--S)*.09);height:calc(var(--S)*.09);background:var(--pink);border:calc(var(--S)*.02) solid var(--ink);border-radius:50%}
+.pop{--sl:max(2px,calc(var(--S)*.025));--bl:max(1.5px,calc(var(--S)*.02))}   /* 棒の線・リボンの線の太さ(アプリと同じ) */
+.stick{position:relative;width:calc(var(--S)*.09 + var(--sl));height:calc(var(--S)*.5 + var(--sl));margin-top:calc(var(--S)*-.1 - var(--sl)/2);background:var(--stick);border:var(--sl) solid var(--ink);border-radius:calc(var(--S)*.05 + var(--sl)/2)}
+.bow{position:absolute;left:50%;top:calc(var(--S)*.11 - var(--sl)/2);width:0;height:0}
+.bow i{position:absolute;top:calc(-1*(var(--S)*.05 + var(--bl)/2));width:calc(var(--S)*.2 + var(--bl));height:calc(var(--S)*.1 + var(--bl));background:var(--yellow);border:var(--bl) solid var(--ink);border-radius:999px}
+.bow i:nth-child(1){left:calc(-1*(var(--S)*.2 + var(--bl)/2));transform:rotate(-22deg)}.bow i:nth-child(2){left:calc(-1*var(--bl)/2);transform:rotate(22deg)}
+.bow b{position:absolute;left:calc(-1*(var(--S)*.045 + var(--bl)/2));top:calc(-1*(var(--S)*.045 + var(--bl)/2));width:calc(var(--S)*.09 + var(--bl));height:calc(var(--S)*.09 + var(--bl));background:var(--pink);border:var(--bl) solid var(--ink);border-radius:50%}
 @keyframes spin{to{transform:rotate(360deg)}}
 .ongaku{white-space:nowrap;font-weight:900;font-size:calc(var(--S)*.158);letter-spacing:.18em;padding-left:.18em;color:var(--ink);text-shadow:0 .07em 0 rgba(255,255,255,.9)}
-.deco{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden}
+.deco{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden;--DB:calc(var(--D)*.353 + env(safe-area-inset-top,0px) + 4px)}   /* --DB = 上のモコモコの下端 */
 .deco svg{position:absolute;height:auto;pointer-events:auto;cursor:pointer;-webkit-tap-highlight-color:transparent;-webkit-user-select:none;user-select:none}
 body>*{position:relative;z-index:1;pointer-events:none}   /* 画面いっぱいの透明な枠が、うしろのお菓子へのタップをふさがないように、枠はタップを通す */
 .panel,.row,button{pointer-events:auto}                   /* さわる必要のある所（ボタン・絵のカード）だけ、タップを受ける */
@@ -434,7 +435,7 @@ else{$('art').style.display='none';$('play').parentNode.style.display='none';$('
     if(k==='s6'&&c==='yellow'){html=html.split('#ffabd8').join('#ffbf00').split('#ff93cc').join('#f7a300');}
     t.innerHTML=html;const s=t.firstChild;
     s.setAttribute('class','');
-    s.style.cssText='left:'+x+'%;top:'+y+'%;width:calc('+w+'px*(.6 + var(--f)*.6));transform:rotate('+r+'deg)';
+    s.style.cssText='left:'+x+'%;top:calc(var(--DB) + (100% - var(--DB))*'+(y/100)+');width:calc('+w+'px*(.6 + var(--f)*.6));transform:rotate('+r+'deg)';
     s.dataset.r=r;s.dataset.k=k;s.addEventListener('click',()=>boing(s));
     box.appendChild(s);});
   document.body.insertBefore(box,document.body.firstChild);
