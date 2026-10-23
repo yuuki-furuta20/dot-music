@@ -29,7 +29,8 @@ body::before{content:"";position:fixed;left:0;right:0;top:0;height:calc(var(--D)
 .ongaku{white-space:nowrap;font-weight:900;font-size:calc(var(--S)*.158);letter-spacing:.18em;padding-left:.18em;color:var(--ink);text-shadow:0 .07em 0 rgba(255,255,255,.9)}
 .deco{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden}
 .deco svg{position:absolute;height:auto;pointer-events:auto;cursor:pointer;-webkit-tap-highlight-color:transparent;-webkit-user-select:none;user-select:none}
-body>*{position:relative;z-index:1}
+body>*{position:relative;z-index:1;pointer-events:none}   /* 画面いっぱいの透明な枠が、うしろのお菓子へのタップをふさがないように、枠はタップを通す */
+.panel,.row,button{pointer-events:auto}                   /* さわる必要のある所（ボタン・絵のカード）だけ、タップを受ける */
 .deco{position:fixed}
 p.sub{margin:0;color:var(--sub);font-size:.95rem;font-weight:900;text-align:center}
 .panel{background:#fff;border:3px solid var(--ink);box-shadow:0 5px 0 var(--ink);border-radius:26px;padding:10px;width:var(--PW)}
