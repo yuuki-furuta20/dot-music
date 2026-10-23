@@ -471,7 +471,7 @@ function fit(){
   document.documentElement.style.setProperty('--f',f.toFixed(3));
   avoid();
 }
-// 文字（「きょくちょう：…」と「-ongaku-」）にお菓子がかぶらないよう、かぶるお菓子だけ上か下へ少しずらす
+// 文字（「きょくちょう：…」と「-ongaku-」）にお菓子がかぶらないよう、かぶるお菓子だけを、いちばん近いあいている場所へずらす
 function avoid(){
   const deco=document.querySelector('.deco');if(!deco)return;
   const R=[];
@@ -481,23 +481,20 @@ function avoid(){
     const b=rg.getBoundingClientRect();if(b.width>0)R.push(b);
   }
   const sw=[...deco.querySelectorAll('svg')];
-  sw.forEach(x=>{x.style.marginTop='0px';});
-  const pad=8,H=window.innerHeight,top=parseFloat(getComputedStyle(deco).getPropertyValue('--DB'))||0;
+  sw.forEach(x=>{x.style.marginTop='0px';x.style.marginLeft='0px';});
+  if(!R.length)return;
+  const pad=8,W=window.innerWidth,H=window.innerHeight;
   const dbPx=(()=>{const t=document.createElement('div');t.style.cssText='position:fixed;top:0;height:var(--DB)';deco.appendChild(t);const h=t.getBoundingClientRect().height;t.remove();return h;})();
+  const hit=(b,dx,dy)=>R.some(t=>b.left+dx<t.right+pad&&b.right+dx>t.left-pad&&b.top+dy<t.bottom+pad&&b.bottom+dy>t.top-pad);
+  const inside=(b,dx,dy)=>b.left+dx>=0&&b.right+dx<=W&&b.top+dy>=dbPx&&b.bottom+dy<=H;
+  // 近い順にならべた「ずらし方」（上下左右ななめ、8pxずつ遠くへ）
+  const C=[];
+  for(let r=8;r<=200;r+=8)for(let k=0;k<16;k++){const a=k*Math.PI/8;C.push([Math.round(Math.cos(a)*r),Math.round(Math.sin(a)*r)]);}
   sw.forEach(x=>{
-    let dy=0;
-    for(const t of R){
-      const b=x.getBoundingClientRect();const bt=b.top+dy,bb=b.bottom+dy;
-      if(b.left<t.right+pad&&b.right>t.left-pad&&bt<t.bottom+pad&&bb>t.top-pad){
-        const up=bb-(t.top-pad),down=t.bottom+pad-bt;
-        dy+=((bt+bb)/2<(t.top+t.bottom)/2)?-up:down;
-      }
-    }
-    // モコモコの中・画面の外には出さない
     const b=x.getBoundingClientRect();
-    if(b.top+dy<dbPx)dy=dbPx-b.top;
-    if(b.bottom+dy>H)dy=H-b.bottom;
-    x.style.marginTop=dy.toFixed(1)+'px';
+    if(!hit(b,0,0))return;
+    const c=C.find(([dx,dy])=>inside(b,dx,dy)&&!hit(b,dx,dy));
+    if(c){x.style.marginLeft=c[0]+'px';x.style.marginTop=c[1]+'px';}
   });
 }
 fit();addEventListener('resize',fit);addEventListener('orientationchange',fit);
