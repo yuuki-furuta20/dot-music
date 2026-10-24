@@ -3,6 +3,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="light">
 <title>音描 -ongaku-</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700;900&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+<noscript><link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700;900&display=swap" rel="stylesheet"></noscript>
 <style>
 :root{--ink:#5c2b33;--sub:#9a5a72;--pink:#ff78b0;--sky:#4dd9ed;--yellow:#ffe04d;--mint:#80e699;--cv:#fffdf8;--stick:#C19A6B;--f:.55;--S:calc(190px*var(--f));--D:clamp(212px,54.5vw,289px);--Wc:min(calc(94vw - 26px),494px,max(160px,calc(100vh - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px) - 246px - var(--S)*1.59)));--PW:calc(var(--Wc) + 26px)}
 @supports(height:100dvh){:root{--Wc:min(calc(94vw - 26px),494px,max(160px,calc(100dvh - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px) - 246px - var(--S)*1.59)))}}
@@ -34,7 +37,7 @@ body>*{position:relative;z-index:1;pointer-events:none}   /* 画面いっぱい�
 .deco{position:fixed}
 /* 上のモコモコの帯：さわると、あわが出る（ボタンや絵のカードより下に置くので、それらのタップはじゃましない） */
 #bband{position:fixed;left:0;right:0;top:0;height:calc(var(--D)*.353 + env(safe-area-inset-top,0px) + 4px);z-index:0;pointer-events:auto;-webkit-tap-highlight-color:transparent;-webkit-user-select:none;user-select:none}
-#bcv{position:fixed;left:0;top:0;z-index:6;pointer-events:none}
+#bcv{position:fixed;left:0;top:0;z-index:6;pointer-events:none;width:auto;aspect-ratio:auto;background:transparent;border-radius:0;box-shadow:none}
 p.sub{margin:0;color:var(--sub);font-size:.95rem;font-weight:900;text-align:center}
 .panel{background:#fff;border:3px solid var(--ink);box-shadow:0 5px 0 var(--ink);border-radius:26px;padding:10px;width:var(--PW)}
 canvas{width:100%;aspect-ratio:1;display:block;border-radius:16px;background:var(--cv);box-shadow:inset 0 0 0 2px rgba(92,43,51,.14);touch-action:manipulation}
