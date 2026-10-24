@@ -15,7 +15,7 @@ min-height:100vh;min-height:100dvh;
 display:flex;flex-direction:column;align-items:center;padding:calc(env(safe-area-inset-top,0px) + 52px) 14px calc(env(safe-area-inset-bottom,0px) + 12px);gap:10px;justify-content:space-evenly}
 body::before{content:"";position:fixed;left:0;right:0;top:0;height:calc(var(--D)*.353 + env(safe-area-inset-top,0px) + 4px);z-index:5;pointer-events:none;background:var(--drip,url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='170' height='60'><rect x='0' y='-10' width='22' height='29' rx='11.0' fill='%23ff78b0'/><rect x='18' y='-10' width='18' height='21' rx='9.0' fill='%23ff78b0'/><rect x='40' y='-10' width='24' height='43' rx='12.0' fill='%23ff78b0'/><rect x='66' y='-10' width='16' height='23' rx='8.0' fill='%23ff78b0'/><rect x='86' y='-10' width='22' height='35' rx='11.0' fill='%23ff78b0'/><rect x='112' y='-10' width='18' height='19' rx='9.0' fill='%23ff78b0'/><rect x='130' y='-10' width='24' height='39' rx='12.0' fill='%23ff78b0'/><rect x='154' y='-10' width='16' height='25' rx='8.0' fill='%23ff78b0'/><rect x='0' y='-10' width='22' height='26' rx='11.0' fill='%23ffffff'/><rect x='18' y='-10' width='18' height='18' rx='9.0' fill='%23ffffff'/><rect x='40' y='-10' width='24' height='40' rx='12.0' fill='%23ffffff'/><rect x='66' y='-10' width='16' height='20' rx='8.0' fill='%23ffffff'/><rect x='86' y='-10' width='22' height='32' rx='11.0' fill='%23ffffff'/><rect x='112' y='-10' width='18' height='16' rx='9.0' fill='%23ffffff'/><rect x='130' y='-10' width='24' height='36' rx='12.0' fill='%23ffffff'/><rect x='154' y='-10' width='16' height='22' rx='8.0' fill='%23ffffff'/></svg>")) repeat-x 0 env(safe-area-inset-top,0px)/var(--D) auto,linear-gradient(#fff,#fff) 0 0/100% calc(env(safe-area-inset-top,0px) + 1px) no-repeat,linear-gradient(var(--dc,var(--pink)),var(--dc,var(--pink))) 0 0/100% calc(env(safe-area-inset-top,0px) + 4px) no-repeat}
 .logo{position:relative;display:flex;flex-direction:column;align-items:center;gap:10px}
-.pop{display:flex;flex-direction:column;align-items:center;transform:rotate(-5deg)}
+.pop{display:flex;flex-direction:column;align-items:center;transform:rotate(-5deg);transform-origin:50% 100%;cursor:pointer;-webkit-tap-highlight-color:transparent;-webkit-user-select:none;user-select:none;touch-action:manipulation}   /* 支点は棒の下（アプリと同じ） */
 .head{position:relative;width:var(--S);height:var(--S);border-radius:50%;overflow:hidden;border:calc(var(--S)*.035) solid var(--ink);box-shadow:0 calc(var(--S)*.045) 0 var(--ink);z-index:1;background:#fff}
 .swirl{position:absolute;inset:0;background:repeating-conic-gradient(from 90deg,var(--pink) 0 22.5deg,#fff 22.5deg 45deg,var(--sky) 45deg 67.5deg,#fff 67.5deg 90deg);animation:spin 14s linear infinite}
 .disc{position:absolute;left:50%;top:50%;width:calc(var(--S)*.72);height:calc(var(--S)*.72);transform:translate(-50%,-50%);background:#fff;border:calc(var(--S)*.02) solid var(--ink);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:calc(var(--S)*.27);font-weight:900;line-height:1;color:var(--ink)}
@@ -454,14 +454,38 @@ function boing(el){
   else{F=[[0,0,0,1,1],[0,0,0,1.28,.72],[0,0,0,.84,1.2],[0,0,0,1.14,.88],[0,0,0,.94,1.07],[0,0,0,1,1]];D=600;}
   if(el._a)el._a.cancel();
   el._a=el.animate(F.map(a=>({transform:T(...a)})),{duration:D,easing:'ease-in-out'});
-  try{   // ぽよんと小さな音
+  pyon();
+}
+// ぽよんと小さな音。同じ音を、さわるたびに高さ・大きさを少し変えて鳴らす（アプリと同じ考え方）。お菓子とロゴで共通
+function pyon(){
+  try{
     ac=ac||new (window.AudioContext||window.webkitAudioContext)();ac.resume();
+    const P=[-500,0,200,400,700,900,1200];                 // 高さの候補(セント)。ドレミにあう音。0が元の音
+    const c=P.filter(v=>v!==pyon._last);const base=c[Math.floor(Math.random()*c.length)];pyon._last=base;
+    const m=Math.pow(2,(base+(Math.random()*30-15))/1200);   // ±15セントのゆらぎ
+    const vol=.12*(.75+Math.random()*.25);                   // 大きさは75〜100%
     const o=ac.createOscillator(),g=ac.createGain(),t=ac.currentTime;
-    o.type='sine';o.frequency.setValueAtTime(520,t);o.frequency.exponentialRampToValueAtTime(900,t+.09);
-    g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(.12,t+.01);g.gain.exponentialRampToValueAtTime(.0001,t+.18);
+    o.type='sine';o.frequency.setValueAtTime(520*m,t);o.frequency.exponentialRampToValueAtTime(900*m,t+.09);
+    g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(vol,t+.01);g.gain.exponentialRampToValueAtTime(.0001,t+.18);
     o.connect(g);g.connect(ac.destination);o.start(t);o.stop(t+.2);
   }catch(e){}
 }
+// ロゴ（回転キャンディ）をさわると、棒の下を支点に、だんだん小さくなるふりこのようにゆらゆら（アプリのトップ画面と同じ）
+function swayLogo(el){
+  if(window.matchMedia&&matchMedia('(prefers-reduced-motion:reduce)').matches)return;
+  const head=el.querySelector('.head'),w=(head||el).getBoundingClientRect().width;
+  const j=w*34/190,sw=14,base=-5;                              // アプリ：大きさ190ptのとき jump 34・swing 14°
+  const amps=[1,-.85,.65,-.45,.3,-.15],durs=[.12,.16,.16,.16,.16,.16];
+  const T=(a,y)=>'translateY('+y+'px) rotate('+(base+sw*a)+'deg)';
+  const F=[{transform:T(0,0)}],tm=[0];let t=0;
+  amps.forEach((a,i)=>{t+=durs[i];F.push({transform:T(a,i===0?-j*.25:0)});tm.push(t);});
+  t+=.15;F.push({transform:T(0,0)});tm.push(t);                // さいごに、すっと元の角度へ
+  F.forEach((f,i)=>{f.offset=tm[i]/t;f.easing='ease-in-out';});
+  if(el._a)el._a.cancel();
+  el._a=el.animate(F,{duration:t*1000});
+  pyon();
+}
+(function(){const p=document.querySelector('.pop');if(p)p.addEventListener('click',()=>swayLogo(p));})();
 // 画面の高さに合わせて、飾りの大きさ(--f)を決める：キャンバスを先にとり、残りをキャンディにあてる
 function fit(){
   const cs=getComputedStyle(document.body),vh=window.innerHeight,
